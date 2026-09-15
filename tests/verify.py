@@ -83,7 +83,7 @@ with sync_playwright() as pw:
     pf = pg.eval_on_selector_all('#gHead .pfile', 'els => els.map(e => e.textContent)')
     check('头部卡含导出文件名', len(pf) == 2 and all('girl_head_' in x and '@2x.png' in x for x in pf), pf)
     en = pg.text_content('#expNames')
-    check('整体导出文件名提示', 'girl_full.svg' in en and 'girl_character-generation-skill.zip' in en, en)
+    check('整体导出文件名提示', 'girl_full.svg' in en and 'girl_all.zip' in en, en)
     check('部件命名规则提示', '_body_' in en and '_att_' in en and '_face_' in en, en)
 
     # 6) 身体套装整体切换（紫 → 粉 → 紫）

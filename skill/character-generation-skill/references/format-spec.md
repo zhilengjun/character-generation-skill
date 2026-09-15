@@ -142,7 +142,7 @@ anchors: {
   部件导出按 bbox + 描边外扩紧凑裁切（pad = 1 + 最大描边宽，画到 0~128 界外也完整不裁）；
   整体导出按 128 画框。
   命名：`<id>_head_<套装>` / `<id>_face_<表情>` / `<id>_body_<套装>_<leg_l|leg_r|torso|arm_l|arm_r>` /
-  `<id>_att_<挂件>`；整体 `<id>_full.svg`、`<id>_full@<倍率>x.png`、`<id>_character-generation-skill.zip`、`<id>_selected.zip`。
+  `<id>_att_<挂件>`；整体 `<id>_full.svg`、`<id>_full@<倍率>x.png`、`<id>_all.zip`（全部资源包）、`<id>_selected.zip`（当前装配包）。
 - 自检：部件贴边/越界警告（卡片红框 + 基础面板底部汇总）、加载错误面板；
   **没有** 20% 一致性 UI 表（20% 规则在写角色时自查，页面不展示）。
 - 基础部件/挂件卡片显示该资源的导出文件名（PNG 尺寸倍率变更时刷新）。
