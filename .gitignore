@@ -1,0 +1,11 @@
+# 测试产物（tests/verify.py 生成，可随时删）
+tests/_artifacts/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# 编辑器 / 系统
+.DS_Store
+Thumbs.db

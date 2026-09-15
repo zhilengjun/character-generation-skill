@@ -1,0 +1,1959 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="data:,">
+<title>charforge · 角色部件预览 / 导出</title>
+<style>
+  :root {
+    --line: #4A3B42; --bg: #FFF6EC; --panel: #FFFFFF; --panel2: #FFE9D6;
+    --ink: #3A2E33; --sub: #8C7A80; --ok: #2E8B57; --warn: #C77700; --bad: #D6336C;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 13px/1.5 "Segoe UI", "Microsoft YaHei", sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+    border-bottom: 2px solid var(--line); background: var(--panel2); flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; }
+  header .spacer { flex: 1; }
+  main { display: flex; gap: 14px; padding: 14px 16px; align-items: flex-start; flex-wrap: wrap; }
+  .col-stage { flex: 0 0 430px; max-width: 100%; }
+  .col-side { flex: 1 1 380px; min-width: 340px; display: flex; flex-direction: column; gap: 12px; }
+  .panel { background: var(--panel); border: 2px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .panel h2 { font-size: 13px; margin: 0 0 8px; color: var(--line); }
+  button, select { font: inherit; padding: 4px 10px; border-radius: 7px;
+    border: 1.6px solid var(--line); background: #fff; cursor: pointer; color: var(--ink); }
+  button:hover { background: var(--panel2); }
+  button.primary { background: var(--line); color: #fff; }
+  button.primary:hover { background: #66525B; }
+  /* 舞台 */
+  #stageWrap { text-align: center; }
+  #stage { width: 400px; height: 400px; max-width: 100%; background:
+    repeating-conic-gradient(#f3e6d8 0 25%, #fff 0 50%) 0 0/32px 32px;
+    border: 2px solid var(--line); border-radius: 10px; touch-action: none; }
+  #stage g[data-cfk] { cursor: move; }
+  #stage g[data-cfk]:active { opacity: .85; }
+  .pager { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px; }
+  .pager b { min-width: 110px; text-align: center; font-size: 15px; }
+  .exp-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+  /* 部件选择卡片 */
+  .grp { margin-bottom: 10px; }
+  .grp:last-child { margin-bottom: 0; }
+  .gtitle { font-size: 12px; color: var(--sub); margin-bottom: 4px; }
+  .gtitle b { color: var(--ink); }
+  .cardGrid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pcard { width: 104px; border: 1.6px solid var(--line); border-radius: 8px; padding: 4px;
+    text-align: center; background: #fff; cursor: pointer; position: relative; }
+  .pcard:hover { background: var(--panel2); }
+  .pcard svg { width: 92px; height: 92px; background:
+    repeating-conic-gradient(#f3e6d8 0 25%, #fff 0 50%) 0 0/18px 18px; border-radius: 5px; }
+  .pcard .pname { font-size: 11px; margin-top: 2px; }
+  .pcard .psize { font-size: 10px; color: var(--sub); }
+  .pcard .pfile { font-size: 9px; color: var(--sub); word-break: break-all; line-height: 1.25; }
+  .pcard.warn { outline: 2px solid var(--bad); }
+  .pcard.sel { outline: 2.5px solid var(--ok); background: #F0F9F1; }
+  .pcard.sel::after { content: '✓'; position: absolute; top: -8px; right: -6px;
+    width: 18px; height: 18px; border-radius: 50%; background: var(--ok); color: #fff;
+    font-size: 12px; line-height: 18px; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  th, td { border: 1px solid #D9C8BE; padding: 3px 6px; text-align: center; }
+  th { background: var(--panel2); }
+  .note { color: var(--sub); font-size: 12px; }
+  .errlist { color: var(--bad); font-size: 12px; white-space: pre-wrap; }
+  #meas { position: absolute; left: -9999px; top: 0; visibility: hidden; }
+  footer { padding: 8px 16px 20px; color: var(--sub); font-size: 12px; }
+  footer code { background: var(--panel2); padding: 0 4px; border-radius: 4px; }
+  /* 部件卡编辑按钮 */
+  .pcard .edt { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px;
+    padding: 0; font-size: 11px; line-height: 1; border-radius: 5px; opacity: .85; }
+  .pcard .edt:hover { background: var(--ok); color: #fff; }
+  /* SVG 手动编辑器 */
+  #edDlg { position: fixed; inset: 0; background: rgba(58,46,51,.45); z-index: 50;
+    display: none; align-items: center; justify-content: center; }
+  .ed-box { background: var(--panel); border: 2px solid var(--line); border-radius: 12px;
+    width: min(1000px, 97vw); max-height: 95vh; display: flex; flex-direction: column; }
+  .ed-top { display: flex; align-items: center; gap: 6px; padding: 8px 12px;
+    border-bottom: 1.6px solid var(--line); flex-wrap: wrap; }
+  .ed-top .grow { flex: 1; }
+  .ed-main { display: flex; gap: 10px; padding: 10px 12px; overflow: auto; }
+  #edStage { flex: 0 0 560px; width: 560px; height: 560px; background:
+    repeating-conic-gradient(#f3e6d8 0 25%, #fff 0 50%) 0 0/28px 28px;
+    border: 1.6px solid var(--line); border-radius: 8px; touch-action: none; }
+  .ed-side { flex: 1; min-width: 230px; display: flex; flex-direction: column; gap: 6px; }
+  #edShapes { border: 1px solid #D9C8BE; border-radius: 7px; max-height: 220px; overflow: auto; }
+  #edShapes .srow { display: flex; align-items: center; gap: 6px; padding: 3px 6px;
+    cursor: pointer; border-bottom: 1px solid #F0E4DA; font-size: 12px; }
+  #edShapes .srow:hover { background: var(--panel2); }
+  #edShapes .srow.sel { background: #F0F9F1; outline: 1.5px solid var(--ok); }
+  #edShapes .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #D9C8BE; flex: 0 0 14px; }
+  #edNums { display: flex; flex-wrap: wrap; gap: 6px; }
+  #edNums label { font-size: 12px; display: inline-flex; align-items: center; gap: 3px; }
+  #edNums input { width: 64px; font: inherit; padding: 2px 4px; border: 1.4px solid var(--line);
+    border-radius: 5px; }
+  .ed-tools { display: flex; flex-wrap: wrap; gap: 5px; }
+  .ed-tools button { font-size: 12px; padding: 3px 9px; }
+  .crow { display: flex; align-items: center; gap: 6px; }
+  .crow input[type=color] { width: 36px; height: 22px; padding: 0; border: 1.4px solid var(--line);
+    border-radius: 5px; background: none; cursor: pointer; }
+  button.mini { padding: 2px 8px; font-size: 11px; }
+  .ed-note { color: var(--sub); font-size: 11px; }
+  #toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+    background: var(--line); color: #fff; padding: 8px 16px; border-radius: 8px;
+    font-size: 13px; z-index: 60; display: none; max-width: 80vw; }
+</style>
+</head>
+<body>
+
+<!-- ═════════════════════════════════════════════════════════════════════════
+     角色自动发现：角色 .js 与本文件放在同一个文件夹里，无需改本文件。
+     · http(s) 打开：自动扫描本目录并加载其中全部 .js；
+     · file:// 双击打开：浏览器禁止枚举目录，首次点「选择 chars 文件夹」授权一次；
+     · 角色文件夹可位于任意位置（授权后自动重连）。
+     角色文件格式见 SKILL 规范（references/format-spec.md）。
+     ═══════════════════════════════════════════════════════════════════════ -->
+<script>
+  /* 注册器：必须先于角色文件定义 */
+  window.__CHARFORGE__ = { chars: [], errors: [], texts: {}, names: {}, handles: {}, srcDir: {},
+    dirHandle: null, storedDir: false };
+  window.registerCharacter = function (def) {
+    try {
+      if (!def || !def.id) throw new Error('角色缺 id');
+      if (window.__CHARFORGE__.chars.some(c => c.id === def.id))
+        throw new Error('角色 id 重复: ' + def.id);
+      def.overrides = def.overrides || {};    // 编辑器产物：资源 key → 替换 draw 输出的 SVG 片段
+      window.__CHARFORGE__.chars.push(def);
+    } catch (e) { window.__CHARFORGE__.errors.push(e.message); }
+  };
+  /* 编辑补丁：由编辑器保存时追加在角色文件末尾（标记行 /*__CHARFORGE_EDITS__*\/），
+     也可手工写入。key 格式同 collectItems（id|head:xx / id|body:xx:legL / id|att:xx）。 */
+  window.registerEdits = function (id, map) {
+    const c = window.__CHARFORGE__.chars.find(c => c.id === id);
+    if (!c) { window.__CHARFORGE__.errors.push('registerEdits: 未找到角色 ' + id); return; }
+    c.overrides = Object.assign(c.overrides || {}, map || {});
+  };
+</script>
+
+<header>
+  <h1>🎃 charforge · 角色部件预览 / 导出</h1>
+  <span class="note" id="loadInfo"></span>
+  <span class="spacer"></span>
+</header>
+
+<main>
+  <div class="col-stage">
+    <div class="panel">
+      <div class="pager">
+        <button id="pgPrev" title="上一角色">‹</button>
+        <b id="pgLabel">-</b>
+        <button id="pgNext" title="下一角色">›</button>
+      </div>
+      <div id="stageWrap">
+        <svg id="stage" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="note" style="margin-top:4px">直接拖动部件可微调位置（写盘与导出即时生效；拖回原位即还原；拖出预览框则本次拖动作废弹回）</div>
+        <div class="note" style="margin-top:2px; display:flex; align-items:center; gap:8px">
+          <button class="mini" id="pickSrcBtn" title="重新选择角色所在文件夹（自动加载其中的 .js，含 chars/ 子目录）" style="flex:none">选择路径</button>
+          <span id="srcPath" style="word-break:break-all"></span>
+        </div>
+        <div id="emptyHint" style="display:none; text-align:left; max-width:420px; margin:0 auto;
+             border:2px dashed var(--bad); border-radius:10px; padding:10px 14px; font-size:13px;">
+          <b style="color:var(--bad)">没有加载到任何角色</b><br>
+          角色 .js 推荐<b>放 chars/ 文件夹</b>（与本 charforge.html 同级）；也可放任意文件夹，授权时选中即可。<br>
+          · 网页服务（http://）打开：自动扫描本目录及 chars/，无需操作；<br>
+          · 双击打开（file://）：首次点下面按钮选一次角色文件夹，之后打开<b>自动直读</b>
+          （授权上层目录也能自动识别其中的 chars/ 子文件夹）；<br>
+          <span id="hintRe" style="display:none;color:var(--bad)">
+            检测到上次授权的文件夹，点下面按钮一键重连（浏览器只弹「允许」，不用重新选文件夹）
+          </span>
+          <button id="pickCharsBtn" style="margin:6px 0">📂 选择角色文件夹（授权一次，之后直读）</button><br>
+          <span class="note" id="noFsHint">不支持 File System Access 的浏览器：点上方按钮后按提示手动选 .js</span>
+        </div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <h2 style="margin:0">导出（当前角色）</h2>
+        <label style="display:inline-flex;align-items:center;gap:4px" title="允许 1 位小数，区间 (0,10]">PNG 尺寸倍率
+          <input type="number" id="pngScale" value="2" min="0.1" max="10" step="0.1" style="width:64px">
+        </label>
+      </div>
+      <div class="exp-row">
+        <button id="expFullSvg">整体 SVG</button>
+        <button id="expFullPng">整体 PNG</button>
+      </div>
+      <div class="exp-row">
+        <button id="expZip">⬇ 全部打包 ZIP</button>
+        <button id="expPartsSvg">部件 SVG ×n</button>
+        <button id="expPartsPng">部件 PNG ×n</button>
+      </div>
+      <div class="exp-row">
+        <button id="expSelZip">⬇ 选中打包 ZIP</button>
+        <button id="expSelSvg">选中 SVG ×n</button>
+        <button id="expSelPng">选中 PNG ×n</button>
+        <span class="note" id="selCount">选中导出 = 预览当前装配的部件</span>
+      </div>
+      <div class="exp-row">
+        <div class="note" id="expNames"></div>
+      </div>
+      <!-- 隐藏的手选文件兜底：无 FSA 浏览器点「选择 chars 文件夹」时转调它（JS/验证脚本仍可触达） -->
+      <input type="file" id="addFiles" accept=".js" multiple style="display:none">
+    </div>
+  </div>
+
+  <div class="col-side">
+    <div class="panel">
+      <h2>基础部件（每组单选 1 套）</h2>
+      <div class="grp"><div class="gtitle"><b>头部</b>（含发型）</div><div class="cardGrid" id="gHead"></div></div>
+      <div class="grp"><div class="gtitle"><b>表情</b></div><div class="cardGrid" id="gFace"></div></div>
+      <div class="grp"><div class="gtitle"><b>身体</b>（每套 = 躯干 + 左右臂 + 左右腿，整体替换）</div>
+        <div class="cardGrid" id="gBody"></div></div>
+      <div class="errlist" id="fitWarns"></div>
+    </div>
+    <div class="panel">
+      <h2>挂件（跨分类复选 · 每分类限 1 件 · 再点取消）</h2>
+      <div id="attGroups"></div>
+    </div>
+    <div class="panel" id="errPanel" style="display:none">
+      <h2>加载问题</h2>
+      <div class="errlist" id="regErrors"></div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  charforge · 单页工具，file:// 双击即用 · 角色整体 128px 高，全部资源（各头部/表情/身体件/挂件）可单独导出（SVG 矢量 / PNG 按倍率）。
+</footer>
+
+<!-- 度量用隐藏 SVG（getBBox 需要参与布局，不能 display:none） -->
+<svg id="meas" xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"></svg>
+
+<!-- SVG 手动编辑器 -->
+<div id="edDlg">
+  <div class="ed-box">
+    <div class="ed-top">
+      <b id="edTitle">编辑</b>
+      <select id="edPiece" style="display:none" title="选择要编辑的身体部件"></select>
+      <span class="grow"></span>
+      <button id="edUndo" title="Ctrl+Z">↶ 撤销</button>
+      <button id="edRedo" title="Ctrl+Y">↷ 重做</button>
+      <button id="edZoomIn" title="放大">＋</button>
+      <button id="edZoomOut" title="缩小">－</button>
+      <button id="edCancel">取消</button>
+      <button id="edApply" class="primary">✓ 完成并保存</button>
+    </div>
+    <div class="ed-main">
+      <svg id="edStage" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="ed-side">
+        <div class="gtitle"><b>形状</b>（点击选中）</div>
+        <div id="edShapes"></div>
+        <div class="ed-tools">
+          <button id="edAddLine" title="新增直线（开放路径）">＋线</button>
+          <button id="edAddLoop" title="新增闭合路径（四边形环）">＋环</button>
+          <button id="edDelShape" title="删除选中的形状">－形状</button>
+        </div>
+        <div class="ed-tools">
+          <button id="edAddPt" title="在选中锚点与下一锚点中间插入新锚点">＋锚点</button>
+          <button id="edDelPt" title="删除选中的锚点（相邻段变为直线）">－锚点</button>
+        </div>
+        <div class="gtitle"><b>数值 / 颜色</b>（选中锚点/形状后可改）</div>
+        <div id="edNums"></div>
+        <div class="ed-note" id="edHint">拖拽锚点移动（两侧手柄随行）；选中锚点后可＋/－锚点；曲线手柄可拖拽或调数值。<br>
+          曲线段上＋锚点自动平滑细分（手柄保留）；直线段上加的是直点，<b>数值区的＋/－入柄、＋/－出柄</b>把相邻段在直线↔曲线间切换。<br>
+          ＋线/＋环在当前视图中央新增路径；颜色改填充与描边：点色块选色，「无」= none（再点色块选色即恢复）；描边宽恒可调（无描边时为 0，给宽度自动恢复描边色）。<br>
+          Ctrl+Z 撤销 / Ctrl+Y 重做（≥60 步）；身体套装切换部件会重置历史。<br>
+          「完成并保存」把编辑结果写回角色 .js（首次可能让你选一次保存位置，之后静默保存）。</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const CF = window.__CHARFORGE__;
+  const PIECES = [
+    { k: 'legL', n: 'leg_l', cn: '左腿' }, { k: 'legR', n: 'leg_r', cn: '右腿' },
+    { k: 'torso', n: 'torso', cn: '躯干' },
+    { k: 'armL', n: 'arm_l', cn: '左臂' }, { k: 'armR', n: 'arm_r', cn: '右臂' }
+  ];
+
+  let cur = 0;                                   // 当前分页索引
+  const sel = {};                                // charId -> {head,face,body,atts:{cat:attId}}
+  const bboxCache = {};                          // key -> {x,y,w,h}
+  const strokePadCache = {};                     // key -> pad（描边外扩量）
+
+  /* -------------------------------------------------------- 小工具 */
+  const $ = id => document.getElementById(id);
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+  /* 当前角色的选择状态（默认各取第 1 套；挂件全不选） */
+  function selOf(def) {
+    if (!sel[def.id]) {
+      sel[def.id] = {
+        head: (def.headsets && def.headsets[0] || {}).id,
+        face: (def.faces && def.faces[0] || {}).id,
+        body: (def.bodies && def.bodies[0] || {}).id,
+        atts: {}
+      };
+    }
+    return sel[def.id];
+  }
+
+  /* 部件 → svg 内容字符串（挂件包 translate；编辑器产物 __override 优先于 draw；
+     预览拖动位移 __pos 附加在定位 translate 上，非挂件则外包一层） */
+  function itemSVG(def, item, opt) {
+    const p = def.palette || {};
+    const mk = item.__override != null ? item.__override : item.draw(p, opt || {});
+    const pos = item.__pos || { x: 0, y: 0 };
+    if (item.slot) {                             // 挂件
+      const a = (def.anchors && def.anchors[item.slot]) || [64, 64];
+      const off = item.offset || [0, 0];
+      return '<g transform="translate(' + (a[0] + off[0] + pos.x) + ' ' + (a[1] + off[1] + pos.y) + ')">' + mk + '</g>';
+    }
+    if (pos.x || pos.y)
+      return '<g transform="translate(' + +(pos.x.toFixed(2)) + ' ' + +(pos.y.toFixed(2)) + ')">' + mk + '</g>';
+    return mk;
+  }
+
+  /* 当前选择下的拼装序列（z 升序），带 key（预览分层拖动用） */
+  function assemblyParts(def) {
+    const s = selOf(def);
+    const head = (def.headsets || []).find(h => h.id === s.head);
+    const face = (def.faces || []).find(f => f.id === s.face);
+    const body = (def.bodies || []).find(b => b.id === s.body);
+    const parts = [];
+    function push(item, key) { if (item) parts.push({ item: item, key: key }); }
+    if (head) push(head, def.id + '|head:' + head.id);
+    if (face) push(face, def.id + '|face:' + face.id);
+    if (body) PIECES.forEach(pc => { if (body[pc.k]) push(body[pc.k], def.id + '|body:' + body.id + ':' + pc.k); });
+    Object.keys(s.atts).forEach(function (cat) {
+      const a = (def.attachments || []).find(x => x.id === s.atts[cat]);
+      if (a) push(a, def.id + '|att:' + a.id);
+    });
+    return parts.sort((a, b) => (a.item.z || 0) - (b.item.z || 0))
+      .map(p => ({ key: p.key, mk: itemSVG(def, p.item, {}) }));
+  }
+  function assembly(def) {
+    return assemblyParts(def).map(p => p.mk).join('');
+  }
+
+  /* 紧凑 bbox（key 必须唯一；挂件含挂点位移） */
+  function measure(def, item, key) {
+    key = key || (def.id + '/' + item.id);
+    if (bboxCache[key]) return bboxCache[key];
+    const meas = $('meas');
+    const wrap = document.createElementNS(SVGNS, 'g');
+    wrap.innerHTML = itemSVG(def, item, {});
+    meas.appendChild(wrap);
+    let bb;
+    try { bb = wrap.getBBox(); }
+    finally { meas.removeChild(wrap); }
+    const out = { x: bb.x, y: bb.y, w: bb.width, h: bb.height };
+    bboxCache[key] = out;
+    return out;
+  }
+
+  /* 描边外扩：getBBox 只算几何不含描边，粗描边部件导出会被裁。
+     按部件内最大 stroke-width 外扩（round cap/join 外扩 w/2，再留 miter 尖角与安全边） */
+  function strokePad(def, item, key) {
+    key = key || (def.id + '/' + item.id);
+    if (strokePadCache[key] != null) return strokePadCache[key];
+    let maxSw = 0, m;
+    const re = /stroke-width\s*[:=]\s*"?\s*([\d.]+)/g;
+    const markup = itemSVG(def, item, {});
+    while ((m = re.exec(markup)) !== null) maxSw = Math.max(maxSw, parseFloat(m[1]));
+    const pad = 1 + maxSw;                       // 几何外 1px 安全边 + 描边全宽余量
+    strokePadCache[key] = pad;
+    return pad;
+  }
+  /* 导出 PNG 画布尺寸（与 tightSVG 的 pad 严格一致，确保不裁边） */
+  function pngSize(def, item, key, s) {
+    const bb = measure(def, item, key);
+    const pad = strokePad(def, item, key);
+    return [(bb.w + pad * 2) * s, (bb.h + pad * 2) * s];
+  }
+
+  /* 导出用 svg 字符串 */
+  function tightSVG(def, item, scale, key) {
+    const bb = measure(def, item, key);
+    const pad = strokePad(def, item, key);
+    const x = bb.x - pad, y = bb.y - pad, w = bb.w + pad * 2, h = bb.h + pad * 2;
+    return '<?xml version="1.0" encoding="UTF-8"?>' +
+      '<svg xmlns="http://www.w3.org/2000/svg" width="' + (w * scale) + '" height="' + (h * scale) +
+      '" viewBox="' + x + ' ' + y + ' ' + w + ' ' + h + '">' + itemSVG(def, item, {}) + '</svg>';
+  }
+  function fullSVG(def, scale) {
+    const c = def.canvas || { w: 128, h: 128 };
+    return '<?xml version="1.0" encoding="UTF-8"?>' +
+      '<svg xmlns="http://www.w3.org/2000/svg" width="' + (c.w * scale) + '" height="' + (c.h * scale) +
+      '" viewBox="0 0 ' + c.w + ' ' + c.h + '">' + assembly(def) + '</svg>';
+  }
+
+  /* 全部可导出资源清单：[{item, key, base(文件名主干), label}] */
+  function collectItems(def) {
+    const out = [];
+    (def.headsets || []).forEach(h =>
+      out.push({ item: h, key: def.id + '|head:' + h.id, base: def.id + '_head_' + h.id, label: '头部·' + h.name }));
+    (def.faces || []).forEach(f =>
+      out.push({ item: f, key: def.id + '|face:' + f.id, base: def.id + '_face_' + f.id, label: '表情·' + f.name }));
+    (def.bodies || []).forEach(b => PIECES.forEach(pc => {
+      if (b[pc.k]) out.push({
+        item: b[pc.k], key: def.id + '|body:' + b.id + ':' + pc.k,
+        base: def.id + '_body_' + b.id + '_' + pc.n, label: '身体·' + b.name + '·' + pc.cn
+      });
+    }));
+    (def.attachments || []).forEach(a =>
+      out.push({ item: a, key: def.id + '|att:' + a.id, base: def.id + '_att_' + a.id, label: '挂件·' + a.name }));
+    return out;
+  }
+
+  /* 编辑产物挂接：def.overrides[key] → item.__override（渲染/导出统一走 itemSVG） */
+  function clearBbox(def) {
+    Object.keys(bboxCache).forEach(k => { if (k.indexOf(def.id + '|') === 0) delete bboxCache[k]; });
+    Object.keys(strokePadCache).forEach(k => { if (k.indexOf(def.id + '|') === 0) delete strokePadCache[k]; });
+  }
+  /* 拖动位移包裹层：写盘时把 __pos 并入 overrides（外包 translate g），
+     重载时归一化还原成 __pos——补丁格式不变。 */
+  function unwrapPos(markup) {
+    if (typeof markup !== 'string') return null;
+    const m = markup.match(/^<g transform="translate\((-?[\d.]+) (-?[\d.]+)\)">([\s\S]*)<\/g>$/);
+    return m ? { x: parseFloat(m[1]), y: parseFloat(m[2]), inner: m[3] } : null;
+  }
+  function wrapPos(base, x, y) {
+    return '<g transform="translate(' + +(x.toFixed(2)) + ' ' + +(y.toFixed(2)) + ')">' + base + '</g>';
+  }
+  function resolveOverrides(def) {
+    if (!def || !def.overrides) return;
+    let changed = false;
+    collectItems(def).forEach(function (en) {
+      if (en.item.__pos) return;               // 运行期拖动位移以内存为准，不回读包裹层
+      if (def.overrides[en.key] !== en.item.__override) {
+        let ov = def.overrides[en.key];
+        const w = unwrapPos(ov);
+        if (w) { en.item.__pos = { x: w.x, y: w.y }; ov = w.inner; def.__posOk = false; }
+        en.item.__override = ov;
+        changed = true;
+      }
+    });
+    if (changed) clearBbox(def);
+  }
+
+  /* 启动/重载时把已超出预览框的部件位移重置到预览框中心。
+     __posOk 一次性门闩：resolveOverrides 从存档包裹层还原出 __pos 时翻回 false 触发重查。 */
+  function sanitizePos(def) {
+    if (!def || def.__posOk) return;
+    def.__posOk = true;                        // 先置位：内部 measure 不触发递归
+    const c = def.canvas || { w: 128, h: 128 };
+    const EPS = 0.01;
+    let fixed = 0;
+    collectItems(def).forEach(function (en) {
+      const pos = en.item.__pos;
+      if (!pos || (!pos.x && !pos.y)) return;
+      en.item.__pos = null;                    // 量「无位移」的基准 bbox（绕过缓存）
+      delete bboxCache[en.key];
+      const bb = measure(def, en.item, en.key);
+      en.item.__pos = pos;
+      delete bboxCache[en.key];
+      const L = bb.x + pos.x, T = bb.y + pos.y;
+      const R = bb.x + bb.w + pos.x, B = bb.y + bb.h + pos.y;
+      if (L < -EPS || T < -EPS || R > c.w + EPS || B > c.h + EPS) {
+        en.item.__pos = { x: +(c.w / 2 - (bb.x + bb.w / 2)).toFixed(2),
+                          y: +(c.h / 2 - (bb.y + bb.h / 2)).toFixed(2) };
+        fixed++;
+      }
+    });
+    if (fixed) { clearBbox(def); toast(def.name + '：' + fixed + ' 个部件超出预览框，已重置到中心'); }
+  }
+
+  /* svg 字符串 → PNG Blob（画布尺寸必须为有限正数，防 NaN 静默白图） */
+  function svgToPng(svgStr, w, h) {
+    if (!(isFinite(w) && isFinite(h) && w > 0 && h > 0))
+      return Promise.reject(new Error('PNG 画布尺寸非法: ' + w + 'x' + h + '（疑似 NaN）'));
+    return new Promise(function (res, rej) {
+      const url = URL.createObjectURL(new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' }));
+      const img = new Image();
+      img.onload = function () {
+        const cv = document.createElement('canvas');
+        cv.width = Math.round(w); cv.height = Math.round(h);
+        const ctx = cv.getContext('2d');
+        ctx.drawImage(img, 0, 0, cv.width, cv.height);
+        URL.revokeObjectURL(url);
+        if (cv.toBlob) cv.toBlob(b => b ? res(b) : rej(new Error('toBlob 返回 null')));
+        else rej(new Error('浏览器不支持 canvas.toBlob'));
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); rej(new Error('SVG 转 PNG 加载失败')); };
+      img.src = url;
+    });
+  }
+
+  function download(name, blob) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+  }
+
+  /* ------------------------------------------------- ZIP（store 无压缩） */
+  const CRC_T = (function () {
+    const t = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+      let c = i;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[i] = c >>> 0;
+    }
+    return t;
+  })();
+  function crc32(u8) {
+    let c = 0xFFFFFFFF;
+    for (let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+  function buildZip(files) {
+    const enc = new TextEncoder(), chunks = [], central = [];
+    let offset = 0;
+    const now = new Date();
+    const dosTime = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1)) & 0xFFFF;
+    const dosDate = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xFFFF;
+    files.forEach(function (f) {
+      const name = enc.encode(f.name), crc = crc32(f.data);
+      const lh = new Uint8Array(30 + name.length), dv = new DataView(lh.buffer);
+      dv.setUint32(0, 0x04034b50, true); dv.setUint16(4, 20, true); dv.setUint16(6, 0x0800, true);
+      dv.setUint16(8, 0, true); dv.setUint16(10, dosTime, true); dv.setUint16(12, dosDate, true);
+      dv.setUint32(14, crc, true); dv.setUint32(18, f.data.length, true);
+      dv.setUint32(22, f.data.length, true); dv.setUint16(26, name.length, true);
+      dv.setUint16(28, 0, true); lh.set(name, 30);
+      chunks.push(lh, f.data);
+      const ch = new Uint8Array(46 + name.length), cv = new DataView(ch.buffer);
+      cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
+      cv.setUint16(8, 0x0800, true); cv.setUint16(10, 0, true); cv.setUint16(12, dosTime, true);
+      cv.setUint16(14, dosDate, true); cv.setUint32(16, crc, true);
+      cv.setUint32(20, f.data.length, true); cv.setUint32(24, f.data.length, true);
+      cv.setUint16(28, name.length, true); cv.setUint16(30, 0, true); cv.setUint16(32, 0, true);
+      cv.setUint16(34, 0, true); cv.setUint16(36, 0, true); cv.setUint32(38, 0, true);
+      cv.setUint32(42, offset, true); ch.set(name, 46);
+      central.push(ch);
+      offset += lh.length + f.data.length;
+    });
+    const cdSize = central.reduce((s, c) => s + c.length, 0);
+    const eo = new Uint8Array(22), ev = new DataView(eo.buffer);
+    ev.setUint32(0, 0x06054b50, true); ev.setUint16(4, 0, true); ev.setUint16(6, 0, true);
+    ev.setUint16(8, files.length, true); ev.setUint16(10, files.length, true);
+    ev.setUint32(12, cdSize, true); ev.setUint32(16, offset, true); ev.setUint16(20, 0, true);
+    const all = chunks.concat(central, [eo]);
+    const out = new Uint8Array(all.reduce((s, c) => s + c.length, 0));
+    let pos = 0;
+    all.forEach(c => { out.set(c, pos); pos += c.length; });
+    return new Blob([out], { type: 'application/zip' });
+  }
+
+  /* -------------------------------------------------------- 渲染 */
+  function curDef() { return CF.chars[cur]; }
+
+  function renderStage() {
+    const def = curDef();
+    const stage = $('stage');
+    if (!def) {
+      stage.innerHTML = '';
+      $('emptyHint').style.display = '';
+      $('pgLabel').textContent = '-';
+      $('gHead').innerHTML = ''; $('gFace').innerHTML = '';
+      $('gBody').innerHTML = ''; $('attGroups').innerHTML = '';
+      $('expNames').textContent = '';
+      return;
+    }
+    $('emptyHint').style.display = 'none';
+    const c = def.canvas || { w: 128, h: 128 };
+    stage.setAttribute('viewBox', '0 0 ' + c.w + ' ' + c.h);
+    stage.innerHTML = assemblyParts(def)
+      .map(p => '<g data-cfk="' + p.key + '">' + p.mk + '</g>').join('');
+    $('pgLabel').textContent = def.name + '（' + (cur + 1) + '/' + CF.chars.length + '）';
+  }
+
+  /* 通用卡片（onEdit：右上角 ✎ 打开 SVG 编辑器；selected：预览单选高亮） */
+  function makeCard(vb, inner, name, sub, fileHTML, selected, warn, onClick, onEdit) {
+    const card = document.createElement('div');
+    card.className = 'pcard' + (selected ? ' sel' : '') + (warn ? ' warn' : '');
+    card.innerHTML = '<svg xmlns="' + SVGNS + '" viewBox="' + vb + '">' + inner + '</svg>' +
+      '<div class="pname">' + esc(name) + '</div>' +
+      (sub ? '<div class="psize">' + esc(sub) + '</div>' : '') +
+      '<div class="pfile">' + fileHTML + '</div>';
+    card.addEventListener('click', onClick);
+    if (onEdit) {
+      const b = document.createElement('button');
+      b.className = 'edt'; b.textContent = '✎'; b.title = '手动编辑 SVG';
+      b.addEventListener('click', function (e) { e.stopPropagation(); onEdit(); });
+      card.appendChild(b);
+    }
+    return card;
+  }
+  function vbOf(bb) {
+    return (bb.x - 2) + ' ' + (bb.y - 2) + ' ' + (bb.w + 4) + ' ' + (bb.h + 4);
+  }
+  function fileHTML(base) {
+    return esc(base) + '.svg<br>' +
+      esc(base) + '@<span class="expN">' + pngScale() + '</span>x.png';
+  }
+  /* 画布贴边 / 越界检查（硬裁切风险） */
+  function edgeWarn(def, bb, label, warns) {
+    const c = def.canvas || { w: 128, h: 128 };
+    if (bb.x < 0.4 || bb.y < 0.4 || bb.x + bb.w > c.w - 0.4 || bb.y + bb.h > c.h - 0.4) {
+      warns.push('⚠ ' + label + ' 贴边/越界（bbox ' +
+        bb.x.toFixed(1) + ',' + bb.y.toFixed(1) + ' ~ ' + (bb.x + bb.w).toFixed(1) + ',' + (bb.y + bb.h).toFixed(1) + '）');
+      return true;
+    }
+    return false;
+  }
+
+  /* 基础部件面板：头 / 表情 / 身体 三组单选 */
+  function renderBase(def) {
+    const gH = $('gHead'), gF = $('gFace'), gB = $('gBody');
+    gH.innerHTML = ''; gF.innerHTML = ''; gB.innerHTML = '';
+    $('fitWarns').textContent = '';
+    if (!def) return;
+    const s = selOf(def);
+    const warns = [];
+
+    (def.headsets || []).forEach(function (h) {
+      const key = def.id + '|head:' + h.id;
+      const bb = measure(def, h, key);
+      const warn = edgeWarn(def, bb, '头部·' + h.name, warns);
+      gH.appendChild(makeCard(vbOf(bb), itemSVG(def, h, {}), h.name,
+        bb.w.toFixed(0) + '×' + bb.h.toFixed(0), fileHTML(def.id + '_head_' + h.id),
+        s.head === h.id, warn, function () { s.head = h.id; renderAll(); },
+        function () { openEditor(def, key, null); }));
+    });
+
+    const skin = (def.palette || {}).skin || '#FFCFAB';
+    (def.faces || []).forEach(function (f) {
+      const key = def.id + '|face:' + f.id;
+      /* 预览 = 肤色脸底 + 表情（viewBox 固定覆盖头部） */
+      const inner = '<ellipse cx="64" cy="33" rx="24" ry="22" fill="' + skin + '"/>' +
+        itemSVG(def, f, {});
+      const warn = edgeWarn(def, measure(def, f, key), '表情·' + f.name, warns);
+      gF.appendChild(makeCard('36 6 56 56', inner, f.name, '',
+        fileHTML(def.id + '_face_' + f.id), s.face === f.id, warn,
+        function () { s.face = f.id; renderAll(); },
+        function () { openEditor(def, key, null); }));
+    });
+
+    (def.bodies || []).forEach(function (b) {
+      /* 预览 = 5 件合绘；bbox 取并集 */
+      const pieces = PIECES.filter(pc => b[pc.k]);
+      let x1 = 1e9, y1 = 1e9, x2 = -1e9, y2 = -1e9, anyWarn = false;
+      const inner = pieces.map(function (pc) {
+        const bb = measure(def, b[pc.k], def.id + '|body:' + b.id + ':' + pc.k);
+        x1 = Math.min(x1, bb.x); y1 = Math.min(y1, bb.y);
+        x2 = Math.max(x2, bb.x + bb.w); y2 = Math.max(y2, bb.y + bb.h);
+        if (edgeWarn(def, bb, '身体·' + b.name + '·' + pc.cn, warns)) anyWarn = true;
+        return itemSVG(def, b[pc.k], {});
+      }).join('');
+      gB.appendChild(makeCard(x1 - 2 + ' ' + (y1 - 2) + ' ' + (x2 - x1 + 4) + ' ' + (y2 - y1 + 4),
+        inner, b.name, '5 件', fileHTML(def.id + '_body_' + b.id + '_…'),
+        s.body === b.id, anyWarn, function () { s.body = b.id; renderAll(); },
+        function () { openEditor(def, null, b); }));
+    });
+
+    $('fitWarns').textContent = warns.join('\n');
+  }
+
+  /* 挂件面板：按 cat 分组，组内单选（再点取消） */
+  function renderAtts(def) {
+    const s = def ? selOf(def) : {};
+    const host = $('attGroups');
+    host.innerHTML = '';
+    const atts = (def && def.attachments) || [];
+    if (!atts.length) {
+      host.innerHTML = '<span class="note">（该角色暂无挂件）</span>';
+      return;
+    }
+    const cats = [];
+    atts.forEach(a => { if (cats.indexOf(a.cat || '未分类') < 0) cats.push(a.cat || '未分类'); });
+    cats.forEach(function (cat) {
+      const grp = document.createElement('div');
+      grp.className = 'grp';
+      grp.innerHTML = '<div class="gtitle"><b>' + esc(cat) + '</b></div>';
+      const grid = document.createElement('div');
+      grid.className = 'cardGrid';
+      const warns = [];
+      atts.filter(a => (a.cat || '未分类') === cat).forEach(function (a) {
+        const key = def.id + '|att:' + a.id;
+        const bb = measure(def, a, key);
+        const warn = edgeWarn(def, bb, '挂件·' + a.name, warns);
+        const active = s.atts[cat] === a.id;
+        grid.appendChild(makeCard(vbOf(bb), itemSVG(def, a, {}), a.name,
+          '@' + a.slot, fileHTML(def.id + '_att_' + a.id), active, warn, function () {
+            if (s.atts[cat] === a.id) delete s.atts[cat];    // 再点取消
+            else s.atts[cat] = a.id;                          // 同类替换
+            renderAll();
+          }, function () { openEditor(def, key, null); }));
+        if (warn) grp.classList.add('haswarn');
+      });
+      grp.appendChild(grid);
+      host.appendChild(grp);
+    });
+  }
+
+  /* 当前角色文件来源路径（浏览器安全限制拿不到绝对路径，按加载方式显示可得部分）：
+     FSA 授权 → 授权文件夹/子目录/文件名；http → 相对路径；手选文件 → 仅文件名 */
+  function renderSrcPath(def) {
+    const el = $('srcPath');
+    if (!def) { el.textContent = ''; return; }
+    const fname = CF.names[def.id] || (def.id + '.js');
+    const src = CF.srcDir[fname];
+    let text;
+    if (typeof src === 'string') {
+      text = src + fname;                                          // http：'./' 或 './chars/'
+    } else if (src && typeof src === 'object') {
+      const segs = [];
+      if (src !== CF.dirHandle && CF.dirHandle && CF.dirHandle.name) segs.push(CF.dirHandle.name);
+      if (src.name) segs.push(src.name);
+      text = (segs.length ? segs.join('/') + '/' : '') + fname;    // FSA：文件夹/子目录/文件名
+    } else if (CF.dirHandle && CF.dirHandle.name) {
+      text = CF.dirHandle.name + '/' + fname;
+    } else {
+      text = fname + '（手选文件，浏览器不提供完整路径）';
+    }
+    el.textContent = '角色文件：' + text;
+  }
+
+  function renderLoadInfo() {
+    if (CF.chars.length === 0) {
+      $('loadInfo').innerHTML = '<span style="color:var(--bad)">⚠ 未加载到角色</span>';
+      $('errPanel').style.display = '';
+      $('regErrors').textContent = '角色文件没有被加载到。\n' +
+        '角色 .js 推荐放 chars/ 文件夹（与本 charforge.html 同级）。\n' +
+        '· 网页服务（http://）打开会自动扫描本目录及 chars/；\n' +
+        '· file:// 双击打开时浏览器禁止枚举目录，请点「选择角色文件夹」按钮\n' +
+        '  授权角色所在文件夹（一次即可，之后自动重连；授权上层目录也会识别 chars/）。';
+    } else {
+      $('loadInfo').textContent = '已加载 ' + CF.chars.length + ' 个角色';
+      if (!CF.errors.length) $('errPanel').style.display = 'none';
+    }
+    if (CF.errors.length) {
+      $('errPanel').style.display = '';
+      $('regErrors').textContent = CF.errors.join('\n');
+    }
+  }
+
+  function renderPartsExtra(def) {
+    if (!def) return;
+    $('expNames').innerHTML = '整体导出：<code>' + esc(def.id) + '_full.svg</code> · <code>' +
+      esc(def.id) + '_full@' + pngScale() + 'x.png</code> · <code>' + esc(def.id) + '_charforge.zip</code>' +
+      '<br>部件命名：<code>' + esc(def.id) + '_head_&lt;套装&gt;</code> / <code>_face_</code> / ' +
+      '<code>_body_&lt;套装&gt;_&lt;leg_l|leg_r|torso|arm_l|arm_r&gt;</code> / <code>_att_&lt;挂件&gt;</code>（PNG 同名 @倍率）';
+  }
+
+  function renderAll() {
+    CF.chars.forEach(resolveOverrides);      // 全角色解析（分页/导出随时可达）
+    CF.chars.forEach(sanitizePos);           // 越界位移重置到中心（每角色一次性）
+    renderLoadInfo();
+    renderStage();
+    const def = curDef();
+    renderBase(def);
+    renderAtts(def);
+    renderPartsExtra(def);
+    renderSrcPath(def);
+    renderSelUI();
+  }
+
+  /* -------------------------------------------------------- 导出动作 */
+  /* PNG 倍率：浮点输入，1 位小数，区间 (0,10]；非法/越界输入在读取时归一化回写（门闩） */
+  function pngScale() {
+    const el = $('pngScale');
+    let v = parseFloat(el.value);
+    if (!isFinite(v) || v <= 0) v = 2;          // 非法或 ≤0 回默认
+    v = Math.round(v * 10) / 10;                // 最多 1 位小数
+    const s = Math.min(10, Math.max(0.1, v));   // 夹进 (0,10]
+    if (el.value !== String(s)) el.value = s;   // 回写纠正（blur 后生效）
+    return s;
+  }
+  window.__lastExport = null;                  // 导出状态探针（调试/自动化用）
+
+  function exportZip() {
+    const def = curDef(); if (!def) return;
+    window.__lastExport = { state: 'running' };
+    const s = pngScale(), c = def.canvas || { w: 128, h: 128 };
+    const items = collectItems(def);
+    const files = [];                          // data 一律 Uint8Array（buildZip 依赖 .length/索引）
+    const addText = (name, str) =>
+      files.push({ name: name, data: new TextEncoder().encode(str) });
+    addText(def.id + '_full.svg', fullSVG(def, 1));
+    items.forEach(it => addText(it.base + '.svg', tightSVG(def, it.item, 1, it.key)));
+    const jobs = [];
+    jobs.push(svgToPng(fullSVG(def, s), c.w * s, c.h * s).then(b => b.arrayBuffer()).then(buf =>
+      files.push({ name: def.id + '_full@' + s + 'x.png', data: new Uint8Array(buf) })));
+    items.forEach(function (it) {
+      const bb = measure(def, it.item, it.key);
+      const wh = pngSize(def, it.item, it.key, s);
+      jobs.push(svgToPng(tightSVG(def, it.item, s, it.key), wh[0], wh[1]).then(b => b.arrayBuffer()).then(buf =>
+        files.push({ name: it.base + '@' + s + 'x.png', data: new Uint8Array(buf) })));
+    });
+    Promise.all(jobs).then(function () {
+      window.__lastExport = { state: 'ok', files: files.length };
+      download(def.id + '_charforge.zip', buildZip(files));
+    }).catch(function (e) {
+      window.__lastExport = { state: 'error', message: e.message };
+      alert('导出失败：' + e.message);
+    });
+  }
+
+  function exportFull(kind) {
+    const def = curDef(); if (!def) return;
+    const s = pngScale(), c = def.canvas || { w: 128, h: 128 };
+    if (kind === 'svg') download(def.id + '_full.svg', new Blob([fullSVG(def, 1)], { type: 'image/svg+xml' }));
+    else svgToPng(fullSVG(def, s), c.w * s, c.h * s)
+      .then(b => download(def.id + '_full@' + s + 'x.png', b))
+      .catch(e => alert('导出失败：' + e.message));
+  }
+
+  function exportParts(kind) {
+    const def = curDef(); if (!def) return;
+    const s = pngScale();
+    const items = collectItems(def);
+    if (kind === 'svg') {
+      items.forEach(it => download(it.base + '.svg',
+        new Blob([tightSVG(def, it.item, 1, it.key)], { type: 'image/svg+xml' })));
+    } else {
+      Promise.all(items.map(function (it) {
+        const wh = pngSize(def, it.item, it.key, s);
+        return svgToPng(tightSVG(def, it.item, s, it.key), wh[0], wh[1])
+          .then(b => download(it.base + '@' + s + 'x.png', b));
+      })).catch(e => alert('导出失败：' + e.message));
+    }
+  }
+
+  /* 选中部件导出：直接读预览当前装配（单选的头/表情/身体套 + 已点选挂件；身体套展开 5 件） */
+  function collectSel(def) {
+    const s = selOf(def);
+    const keys = [def.id + '|head:' + s.head, def.id + '|face:' + s.face];
+    PIECES.forEach(pc => keys.push(def.id + '|body:' + s.body + ':' + pc.k));
+    Object.keys(s.atts).forEach(cat => keys.push(def.id + '|att:' + s.atts[cat]));
+    const set = {}; keys.forEach(k => { set[k] = true; });
+    return collectItems(def).filter(it => set[it.key]);
+  }
+
+  function exportSel(kind) {
+    const def = curDef(); if (!def) return;
+    const items = collectSel(def);
+    if (!items.length) { toast('当前预览没有装配任何部件'); return; }
+    const s = pngScale();
+    if (kind === 'zip') {
+      window.__lastExport = { state: 'running' };
+      const files = [];
+      items.forEach(it => files.push({ name: it.base + '.svg',
+        data: new TextEncoder().encode(tightSVG(def, it.item, 1, it.key)) }));
+      const jobs = items.map(function (it) {
+        const wh = pngSize(def, it.item, it.key, s);
+        return svgToPng(tightSVG(def, it.item, s, it.key), wh[0], wh[1])
+          .then(b => b.arrayBuffer()).then(buf =>
+            files.push({ name: it.base + '@' + s + 'x.png', data: new Uint8Array(buf) }));
+      });
+      Promise.all(jobs).then(function () {
+        window.__lastExport = { state: 'ok', files: files.length };
+        download(def.id + '_selected.zip', buildZip(files));
+      }).catch(function (e) {
+        window.__lastExport = { state: 'error', message: e.message };
+        alert('导出失败：' + e.message);
+      });
+    } else if (kind === 'svg') {
+      items.forEach(it => download(it.base + '.svg',
+        new Blob([tightSVG(def, it.item, 1, it.key)], { type: 'image/svg+xml' })));
+    } else {
+      Promise.all(items.map(function (it) {
+        const wh = pngSize(def, it.item, it.key, s);
+        return svgToPng(tightSVG(def, it.item, s, it.key), wh[0], wh[1])
+          .then(b => download(it.base + '@' + s + 'x.png', b));
+      })).catch(e => alert('导出失败：' + e.message));
+    }
+  }
+
+  /* 选中导出 UI：计数跟随预览装配（无独立勾选态，按钮恒可用） */
+  function renderSelUI() {
+    const def = curDef();
+    const n = def ? collectSel(def).length : 0;
+    $('selCount').textContent = def
+      ? '预览装配 ' + n + ' 个部件（点上方卡片切换，「选中」导出即导出这些）'
+      : '';
+    $('expSelSvg').textContent = '选中 SVG ×' + n;
+    $('expSelPng').textContent = '选中 PNG ×' + n;
+    $('expSelZip').textContent = '⬇ 选中打包 ZIP';
+  }
+
+  /* ================================================== SVG 手动编辑器 */
+  let ED = null;                               // 编辑器状态（null = 关闭）
+
+  function toast(msg) {
+    const t = $('toast');
+    t.textContent = msg; t.style.display = 'block';
+    clearTimeout(toast._h);
+    toast._h = setTimeout(() => { t.style.display = 'none'; }, 3400);
+  }
+
+  /* ---- path d 解析/序列化：归一为绝对 M L C Q Z A（H/V→L，S→C，T→Q） ---- */
+  function parsePath(d) {
+    const raw = [];
+    const re = /([MmLlHhVvCcSsQqTtAaZz])|(-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)/g;
+    let m, cc = null;
+    while ((m = re.exec(d)) !== null) {
+      if (m[1]) { cc = { t: m[1], n: [] }; raw.push(cc); }
+      else if (cc) cc.n.push(parseFloat(m[0]));
+    }
+    let x = 0, y = 0, sx = 0, sy = 0, pc = null, pq = null;
+    const out = [];
+    for (let ri = 0; ri < raw.length; ri++) {
+      const c = raw[ri];
+      const up = c.t.toUpperCase(), rel = c.t !== up;
+      let i = 0;
+      do {
+        if (up === 'M') {
+          const nx = rel ? x + c.n[i] : c.n[i], ny = rel ? y + c.n[i + 1] : c.n[i + 1];
+          out.push({ t: i === 0 ? 'M' : 'L', p: [nx, ny] });
+          if (i === 0) { sx = nx; sy = ny; }
+          x = nx; y = ny; i += 2; pc = pq = null;
+        } else if (up === 'L') {
+          const nx = rel ? x + c.n[i] : c.n[i], ny = rel ? y + c.n[i + 1] : c.n[i + 1];
+          out.push({ t: 'L', p: [nx, ny] }); x = nx; y = ny; i += 2; pc = pq = null;
+        } else if (up === 'H') {
+          const nx = rel ? x + c.n[i] : c.n[i];
+          out.push({ t: 'L', p: [nx, y] }); x = nx; i += 1; pc = pq = null;
+        } else if (up === 'V') {
+          const ny = rel ? y + c.n[i] : c.n[i];
+          out.push({ t: 'L', p: [x, ny] }); y = ny; i += 1; pc = pq = null;
+        } else if (up === 'C') {
+          const x1 = rel ? x + c.n[i] : c.n[i], y1 = rel ? y + c.n[i + 1] : c.n[i + 1];
+          const x2 = rel ? x + c.n[i + 2] : c.n[i + 2], y2 = rel ? y + c.n[i + 3] : c.n[i + 3];
+          const nx = rel ? x + c.n[i + 4] : c.n[i + 4], ny = rel ? y + c.n[i + 5] : c.n[i + 5];
+          out.push({ t: 'C', p: [x1, y1, x2, y2, nx, ny] });
+          x = nx; y = ny; pc = [x2, y2]; pq = null; i += 6;
+        } else if (up === 'S') {
+          const x1 = pc ? 2 * x - pc[0] : x, y1 = pc ? 2 * y - pc[1] : y;
+          const x2 = rel ? x + c.n[i] : c.n[i], y2 = rel ? y + c.n[i + 1] : c.n[i + 1];
+          const nx = rel ? x + c.n[i + 2] : c.n[i + 2], ny = rel ? y + c.n[i + 3] : c.n[i + 3];
+          out.push({ t: 'C', p: [x1, y1, x2, y2, nx, ny] });
+          x = nx; y = ny; pc = [x2, y2]; pq = null; i += 4;
+        } else if (up === 'Q') {
+          const x1 = rel ? x + c.n[i] : c.n[i], y1 = rel ? y + c.n[i + 1] : c.n[i + 1];
+          const nx = rel ? x + c.n[i + 2] : c.n[i + 2], ny = rel ? y + c.n[i + 3] : c.n[i + 3];
+          out.push({ t: 'Q', p: [x1, y1, nx, ny] });
+          x = nx; y = ny; pq = [x1, y1]; pc = null; i += 4;
+        } else if (up === 'T') {
+          const x1 = pq ? 2 * x - pq[0] : x, y1 = pq ? 2 * y - pq[1] : y;
+          const nx = rel ? x + c.n[i] : c.n[i], ny = rel ? y + c.n[i + 1] : c.n[i + 1];
+          out.push({ t: 'Q', p: [x1, y1, nx, ny] });
+          x = nx; y = ny; pq = [x1, y1]; pc = null; i += 2;
+        } else if (up === 'A') {
+          const p = [];
+          for (let k = 0; k < 7 && i + k < c.n.length; k++)
+            p.push(rel && k >= 5 ? (k === 5 ? x + c.n[i + k] : y + c.n[i + k]) : c.n[i + k]);
+          out.push({ t: 'A', p: p });
+          x = p[5]; y = p[6]; pc = pq = null; i += 7;
+        } else {                              // Z
+          out.push({ t: 'Z', p: [] });
+          x = sx; y = sy; pc = pq = null; i = c.n.length;
+        }
+      } while (i < c.n.length);
+    }
+    return out;
+  }
+  function serPath(cmds) {
+    return cmds.map(c => c.t === 'Z' ? 'Z' : c.t + c.p.map(v => +(+v).toFixed(2)).join(' ')).join('');
+  }
+
+  /* ---- SVG 片段 → 可编辑形状模型 ---- */
+  function parseMarkup(markup) {
+    const doc = new DOMParser().parseFromString(
+      '<svg xmlns="' + SVGNS + '">' + markup + '</svg>', 'image/svg+xml');
+    const shapes = [];
+    Array.from(doc.documentElement.childNodes).forEach(function (el) {
+      if (el.nodeType !== 1) return;
+      const tag = el.tagName.toLowerCase();
+      const attrs = {};
+      Array.from(el.attributes).forEach(a => { attrs[a.name] = a.value; });
+      if (tag === 'path' && attrs.d) {
+        const d = attrs.d; delete attrs.d;
+        shapes.push({ kind: 'path', attrs: attrs, cmds: parsePath(d) });
+      } else if (tag === 'line') {
+        shapes.push({
+          kind: 'path',
+          attrs: (function () { const a = Object.assign({}, attrs); delete a.x1; delete a.y1; delete a.x2; delete a.y2; return a; })(),
+          cmds: [{ t: 'M', p: [+attrs.x1 || 0, +attrs.y1 || 0] }, { t: 'L', p: [+attrs.x2 || 0, +attrs.y2 || 0] }]
+        });
+      } else if (tag === 'ellipse' || tag === 'circle' || tag === 'rect') {
+        shapes.push({ kind: tag, attrs: attrs });
+      } else {
+        shapes.push({ kind: 'other', tag: tag, attrs: attrs, raw: el.outerHTML });
+      }
+    });
+    return shapes;
+  }
+  function shapeToSVG(s) {
+    const a = Object.keys(s.attrs).map(k => k + '="' + esc(s.attrs[k]) + '"').join(' ');
+    if (s.kind === 'path') return '<path ' + a + ' d="' + serPath(s.cmds) + '"/>';
+    if (s.kind === 'other') return s.raw || '';
+    if (s.kind === 'ellipse') return '<ellipse ' + a + '/>';
+    if (s.kind === 'circle') return '<circle ' + a + '/>';
+    if (s.kind === 'rect') return '<rect ' + a + '/>';
+    return '';
+  }
+
+  /* ---- 锚点 / 手柄几何 ---- */
+  function anchorsOf(s) {
+    const out = [];
+    s.cmds.forEach(function (c, ci) {
+      if (c.t === 'M' || c.t === 'L') out.push({ ci: ci, pi: 0 });
+      else if (c.t === 'C') out.push({ ci: ci, pi: 4 });
+      else if (c.t === 'Q') out.push({ ci: ci, pi: 2 });
+      else if (c.t === 'A') out.push({ ci: ci, pi: 5 });
+    });
+    return out;
+  }
+  function moveAnchor(s, ai, dx, dy) {
+    const a = anchorsOf(s)[ai]; if (!a) return;
+    const c = s.cmds[a.ci];
+    c.p[a.pi] += dx; c.p[a.pi + 1] += dy;
+    if (c.t === 'C') { c.p[2] += dx; c.p[3] += dy; }             // 入柄随行
+    else if (c.t === 'Q') { c.p[0] += dx; c.p[1] += dy; }
+    const nx = s.cmds[a.ci + 1];                                   // 出柄随行
+    if (nx && (nx.t === 'C' || nx.t === 'Q')) { nx.p[0] += dx; nx.p[1] += dy; }
+  }
+  function moveHandle(s, ai, h, dx, dy) {
+    const a = anchorsOf(s)[ai]; if (!a) return;
+    const c = s.cmds[a.ci];
+    if (h === 'in') {
+      if (c.t === 'C') { c.p[2] += dx; c.p[3] += dy; }
+      else if (c.t === 'Q') { c.p[0] += dx; c.p[1] += dy; }
+    } else {
+      const nx = s.cmds[a.ci + 1];
+      if (nx && (nx.t === 'C' || nx.t === 'Q')) { nx.p[0] += dx; nx.p[1] += dy; }
+    }
+  }
+  function centerOf(s) {
+    const a = s.attrs;
+    if (s.kind === 'rect') return [(+a.x || 0) + (+a.width || 0) / 2, (+a.y || 0) + (+a.height || 0) / 2];
+    return [+a.cx || 0, +a.cy || 0];
+  }
+  function moveCenter(s, dx, dy) {
+    const a = s.attrs;
+    if (s.kind === 'rect') { a.x = +(+(+a.x || 0) + dx).toFixed(2); a.y = +(+(+a.y || 0) + dy).toFixed(2); }
+    else { a.cx = +(+(+a.cx || 0) + dx).toFixed(2); a.cy = +(+(+a.cy || 0) + dy).toFixed(2); }
+  }
+
+  /* ---- 编辑器工具：增删形状 / 增删锚点 ---- */
+  function addShape(kind) {
+    if (!ED) return false;
+    const v = ED.vb || [0, 0, 128, 128];
+    const cx = v[0] + v[2] / 2, cy = v[1] + v[3] / 2, r = Math.min(v[2], v[3]) * 0.18;
+    const f2 = n => +(n.toFixed(2));
+    let s;
+    if (kind === 'line') {                       // 开放直线：默认角色线色
+      s = { kind: 'path', attrs: { fill: 'none', stroke: '#4A3B42', 'stroke-width': 2, 'stroke-linecap': 'round' },
+        cmds: [{ t: 'M', p: [f2(cx - r), f2(cy)] }, { t: 'L', p: [f2(cx + r), f2(cy)] }] };
+    } else {                                     // 闭合环：四边形
+      s = { kind: 'path', attrs: { fill: '#4A3B42' },
+        cmds: [{ t: 'M', p: [f2(cx - r), f2(cy - r)] }, { t: 'L', p: [f2(cx + r), f2(cy - r)] },
+               { t: 'L', p: [f2(cx + r), f2(cy + r)] }, { t: 'L', p: [f2(cx - r), f2(cy + r)] },
+               { t: 'Z', p: [] }] };
+    }
+    const at = ED.selShape >= 0 ? ED.selShape + 1 : ED.shapes.length;   // 插在选中形状上层
+    ED.shapes.splice(at, 0, s);
+    ED.selShape = at; ED.selPoint = null;
+    pushHist(); renderShapeList(); redrawEd(); renderNums();
+    return true;
+  }
+  function delShape() {
+    if (!ED || ED.selShape < 0 || !ED.shapes[ED.selShape]) return false;
+    ED.shapes.splice(ED.selShape, 1);
+    ED.selShape = Math.min(ED.selShape, ED.shapes.length - 1);
+    ED.selPoint = null;
+    pushHist(); renderShapeList(); redrawEd(); renderNums();
+    return true;
+  }
+  function addAnchor() {
+    if (!ED) { return false; }
+    const s = ED.shapes[ED.selShape];
+    if (!s || s.kind !== 'path') { toast('先选中一条路径'); return false; }
+    if (!ED.selPoint) { toast('先选中一个锚点（新锚点插在它与下一锚点之间）'); return false; }
+    const anch = anchorsOf(s), a = anch[ED.selPoint.a];
+    if (!a) return false;
+    const c = s.cmds[a.ci], ax = c.p[a.pi], ay = c.p[a.pi + 1];
+    const na = anch[ED.selPoint.a + 1];
+    const f2 = n => +(n.toFixed(2));
+    const zi = s.cmds.findIndex(cc => cc.t === 'Z');
+    const sc = s.cmds[a.ci + 1];                 // 选中锚点的出段（a → 下一锚点）
+    if (na && na.ci === a.ci + 1 && (sc.t === 'C' || sc.t === 'Q')) {
+      /* 曲线段：De Casteljau 中点细分——新锚点两侧手柄全保留，曲线形状不变。
+         注意段起点 P0 = 选中锚点坐标（ax,ay，即前一条命令的终点），不是 sc.p[0]（那是出柄）。 */
+      const p = sc.p;
+      if (sc.t === 'C') {
+        const p1x = p[0], p1y = p[1];                              // 出柄
+        const p2x = p[2], p2y = p[3];                              // 下一锚点入柄
+        const p3x = p[4], p3y = p[5];                              // 下一锚点
+        const a1x = (ax + p1x) / 2, a1y = (ay + p1y) / 2;          // A=(P0+P1)/2
+        const bx = (p1x + p2x) / 2, by = (p1y + p2y) / 2;          // B=(P1+P2)/2
+        const cxx = (p2x + p3x) / 2, cyy = (p2y + p3y) / 2;        // Cc=(P2+P3)/2
+        const dx = (a1x + bx) / 2, dy = (a1y + by) / 2;            // D=(A+B)/2
+        const ex = (bx + cxx) / 2, ey = (by + cyy) / 2;            // E=(B+Cc)/2
+        const fx = (dx + ex) / 2, fy = (dy + ey) / 2;              // F=(D+E)/2 = 新锚点
+        sc.p = [f2(a1x), f2(a1y), f2(dx), f2(dy), f2(fx), f2(fy)];
+        s.cmds.splice(a.ci + 2, 0, { t: 'C', p: [f2(ex), f2(ey), f2(cxx), f2(cyy), p3x, p3y] });
+      } else {
+        const p1x = p[0], p1y = p[1];                              // 控制点
+        const p2x = p[2], p2y = p[3];                              // 下一锚点
+        const a1x = (ax + p1x) / 2, a1y = (ay + p1y) / 2;          // A=(P0+P1)/2
+        const bx = (p1x + p2x) / 2, by = (p1y + p2y) / 2;          // B=(P1+P2)/2
+        const fx = (a1x + bx) / 2, fy = (a1y + by) / 2;            // R=(A+B)/2 = 新锚点
+        sc.p = [f2(a1x), f2(a1y), f2(fx), f2(fy)];
+        s.cmds.splice(a.ci + 2, 0, { t: 'Q', p: [f2(bx), f2(by), p2x, p2y] });
+      }
+    } else {
+      let nx, ny, insAt;
+      if (na && na.ci > a.ci && !s.cmds.slice(a.ci + 1, na.ci).some(cc => cc.t === 'Z')) {
+        const c2 = s.cmds[na.ci];
+        nx = c2.p[na.pi]; ny = c2.p[na.pi + 1]; insAt = a.ci + 1;
+      } else if (zi >= 0) {                        // 子路径末尾：插到 Z 前（朝起点方向）
+        const first = s.cmds[0];
+        nx = first.p[0]; ny = first.p[1]; insAt = zi;
+      } else {                                     // 开放路径末尾：向外延伸
+        nx = ax + 12; ny = ay; insAt = s.cmds.length;
+      }
+      s.cmds.splice(insAt, 0, { t: 'L', p: [+(((ax + nx) / 2)).toFixed(2), +(((ay + ny) / 2)).toFixed(2)] });
+    }
+    ED.selPoint = { a: ED.selPoint.a + 1, h: null };
+    pushHist(); redrawEd(); renderNums();
+    return true;
+  }
+  function delAnchor() {
+    if (!ED) return false;
+    const s = ED.shapes[ED.selShape];
+    if (!s || s.kind !== 'path') { toast('先选中一条路径'); return false; }
+    if (!ED.selPoint) { toast('先选中要删除的锚点'); return false; }
+    const anch = anchorsOf(s);
+    if (anch.length <= 1) { toast('至少保留一个锚点'); return false; }
+    const a = anch[ED.selPoint.a]; if (!a) return false;
+    const ci = a.ci;
+    if (ci === 0) {                              // 删起点：后继锚点成为新起点（首段消失）
+      const nx2 = s.cmds[1];
+      if (nx2 && nx2.t !== 'Z') nx2.t = 'M';
+      s.cmds.shift();
+    } else {                                     // 删中间/末尾锚点：与下一锚点间降为直线
+      const nxt = s.cmds[ci + 1];
+      if (nxt && (nxt.t === 'C' || nxt.t === 'Q')) {
+        const ep = nxt.t === 'C' ? [nxt.p[4], nxt.p[5]] : [nxt.p[2], nxt.p[3]];
+        nxt.t = 'L'; nxt.p = ep;
+      }
+      s.cmds.splice(ci, 1);
+    }
+    ED.selPoint = null;
+    pushHist(); redrawEd(); renderNums();
+    return true;
+  }
+
+  /* ---- 手柄增删：选中锚点的相邻段 直线↔曲线 ----
+     ＋柄 = 相邻 L 段升为 C（手柄沿直线 1/3、2/3 放置，起步形状仍是原直线）；
+     －柄 = 相邻 C/Q 段降为 L（段两端锚点的对应柄同时消失——柄属于段）。 */
+  function segEnd(c) {
+    if (c.t === 'C') return [c.p[4], c.p[5]];
+    if (c.t === 'Q') return [c.p[2], c.p[3]];
+    if (c.t === 'A') return [c.p[5], c.p[6]];
+    return [c.p[0], c.p[1]];
+  }
+  function addHandle(side) {
+    if (!ED) return false;
+    const s = ED.shapes[ED.selShape];
+    if (!s || s.kind !== 'path' || !ED.selPoint) { toast('先选中一个锚点'); return false; }
+    const a = anchorsOf(s)[ED.selPoint.a]; if (!a) return false;
+    const f2 = n => +(n.toFixed(2));
+    if (side === 'out') {
+      const nx = s.cmds[a.ci + 1];
+      if (!nx || nx.t === 'Z' || nx.t === 'A') { toast('该锚点后没有可弯曲的直线段'); return false; }
+      if (nx.t === 'C' || nx.t === 'Q') { toast('出柄已存在'); return false; }
+      const c0 = s.cmds[a.ci], p0x = c0.p[a.pi], p0y = c0.p[a.pi + 1];
+      const epx = nx.p[0], epy = nx.p[1];
+      nx.t = 'C';
+      nx.p = [f2(p0x + (epx - p0x) / 3), f2(p0y + (epy - p0y) / 3),
+              f2(p0x + (epx - p0x) * 2 / 3), f2(p0y + (epy - p0y) * 2 / 3), epx, epy];
+    } else {
+      const c = s.cmds[a.ci];
+      if (c.t === 'C' || c.t === 'Q') { toast('入柄已存在'); return false; }
+      if (a.ci === 0 || c.t !== 'L') { toast('该锚点前没有可弯曲的直线段'); return false; }
+      const pe = segEnd(s.cmds[a.ci - 1]);
+      const epx = c.p[0], epy = c.p[1];
+      c.t = 'C';
+      c.p = [f2(pe[0] + (epx - pe[0]) / 3), f2(pe[1] + (epy - pe[1]) / 3),
+             f2(pe[0] + (epx - pe[0]) * 2 / 3), f2(pe[1] + (epy - pe[1]) * 2 / 3), epx, epy];
+    }
+    pushHist(); redrawEd(); renderNums();
+    return true;
+  }
+  function delHandle(side) {
+    if (!ED) return false;
+    const s = ED.shapes[ED.selShape];
+    if (!s || s.kind !== 'path' || !ED.selPoint) { toast('先选中一个锚点'); return false; }
+    const a = anchorsOf(s)[ED.selPoint.a]; if (!a) return false;
+    if (side === 'out') {
+      const nx = s.cmds[a.ci + 1];
+      if (!nx || (nx.t !== 'C' && nx.t !== 'Q')) { toast('该锚点没有出柄'); return false; }
+      nx.t = 'L'; nx.p = segEnd(nx);
+    } else {
+      const c = s.cmds[a.ci];
+      if (c.t !== 'C' && c.t !== 'Q') { toast('该锚点没有入柄'); return false; }
+      c.t = 'L'; c.p = segEnd(c);
+    }
+    pushHist(); redrawEd(); renderNums();
+    return true;
+  }
+
+  /* ---- 编辑器生命周期 ---- */
+  function openEditor(def, key, bodyDef) {
+    if (!def) return;
+    ED = {
+      def: def, body: bodyDef || null, key: null, item: null, label: '',
+      shapes: [], selShape: -1, selPoint: null, hist: [], hi: -1, vb: null, all: {}
+    };
+    collectItems(def).forEach(en => { ED.all[en.key] = en; });
+    $('edDlg').style.display = 'flex';             // 必须先可见，fitView 里 getBBox 才有效
+    if (bodyDef) {
+      const ddl = $('edPiece');
+      ddl.style.display = ''; ddl.innerHTML = '';
+      PIECES.forEach(function (pc) {
+        const en = ED.all[def.id + '|body:' + bodyDef.id + ':' + pc.k];
+        if (!en) return;
+        const o = document.createElement('option');
+        o.value = en.key; o.textContent = '身体件：' + pc.cn;
+        ddl.appendChild(o);
+      });
+      loadEdKey(def.id + '|body:' + bodyDef.id + ':' + PIECES[2].k);   // 默认躯干
+    } else {
+      $('edPiece').style.display = 'none';
+      loadEdKey(key);
+    }
+  }
+  function loadEdKey(key) {
+    const en = ED.all[key]; if (!en) return;
+    ED.key = key; ED.item = en.item; ED.label = en.label;
+    const inner = ED.item.__override != null
+      ? ED.item.__override : ED.item.draw(ED.def.palette || {}, {});
+    ED.shapes = parseMarkup(inner);
+    ED.selShape = ED.shapes.findIndex(s => s.kind === 'path');
+    if (ED.selShape < 0) ED.selShape = ED.shapes.length ? 0 : -1;
+    ED.selPoint = null;
+    ED.hist = [edSnap()]; ED.hi = 0;
+    $('edTitle').textContent = '编辑 · ' + ED.def.name + ' · ' + ED.label +
+      (ED.item.__override != null ? '（已编辑）' : '');
+    fitView(); renderShapeList(); redrawEd(); renderNums(); updUR();
+  }
+  function closeEditor() { ED = null; $('edDlg').style.display = 'none'; }
+
+  function fitView() {
+    const st = $('edStage');
+    st.innerHTML = ED.shapes.map(shapeToSVG).join('');
+    let bb;
+    try { bb = st.getBBox(); } catch (e) { bb = null; }
+    if (!bb || !bb.width || !bb.height || !isFinite(bb.width)) { ED.vb = [-10, -10, 148, 148]; return; }
+    const pad = Math.max(bb.width, bb.height) * 0.12 + 2;
+    ED.vb = [bb.x - pad, bb.y - pad, bb.width + pad * 2, bb.height + pad * 2];
+  }
+  function zoomEd(f) {
+    if (!ED || !ED.vb) return;
+    const v = ED.vb, cx = v[0] + v[2] / 2, cy = v[1] + v[3] / 2, w = v[2] * f, h = v[3] * f;
+    ED.vb = [cx - w / 2, cy - h / 2, w, h];
+    redrawEd();
+  }
+
+  /* ---- 渲染（形状层 + 锚点/手柄覆盖层） ---- */
+  function redrawEd() {
+    if (!ED) return;
+    const st = $('edStage');
+    st.setAttribute('viewBox', ED.vb.join(' '));
+    let inner = ED.shapes.map(shapeToSVG).join('');
+    const s = ED.shapes[ED.selShape];
+    if (s && s.kind === 'path') {
+      const lines = [], dots = [];
+      anchorsOf(s).forEach(function (a, ai) {
+        const x = s.cmds[a.ci].p[a.pi], y = s.cmds[a.ci].p[a.pi + 1];
+        const selA = ED.selPoint && ED.selPoint.a === ai;
+        dots.push('<circle data-a="' + ai + '" cx="' + x + '" cy="' + y + '" r="' + (selA ? 3.4 : 2.4) +
+          '" fill="' + (selA ? '#D6336C' : '#fff') + '" fill-opacity="' + (selA ? 0.7 : 0.45) +
+          '" stroke="#D6336C" stroke-width="1"/>');
+      });
+      if (ED.selPoint) {
+        const a = anchorsOf(s)[ED.selPoint.a];
+        if (a) {
+          const c = s.cmds[a.ci], ax = c.p[a.pi], ay = c.p[a.pi + 1];
+          if (c.t === 'C' || c.t === 'Q') {
+            const ii = c.t === 'C' ? 2 : 0;
+            lines.push('<line x1="' + ax + '" y1="' + ay + '" x2="' + c.p[ii] + '" y2="' + c.p[ii + 1] +
+              '" stroke="#2E8B57" stroke-width="0.8"/>' +
+              '<circle data-h="in" data-pi="' + ii + '" cx="' + c.p[ii] + '" cy="' + c.p[ii + 1] +
+              '" r="2.6" fill="#2E8B57" fill-opacity="0.55" stroke="#fff" stroke-width="0.8"/>');
+          }
+          const nx = s.cmds[a.ci + 1];
+          if (nx && (nx.t === 'C' || nx.t === 'Q')) {
+            lines.push('<line x1="' + ax + '" y1="' + ay + '" x2="' + nx.p[0] + '" y2="' + nx.p[1] +
+              '" stroke="#2E8B57" stroke-width="0.8"/>' +
+              '<circle data-h="out" data-pi="0" cx="' + nx.p[0] + '" cy="' + nx.p[1] +
+              '" r="2.6" fill="#2E8B57" fill-opacity="0.55" stroke="#fff" stroke-width="0.8"/>');
+          }
+        }
+      }
+      inner += lines.join('') + dots.join('');
+    } else if (s && (s.kind === 'ellipse' || s.kind === 'circle' || s.kind === 'rect')) {
+      const c = centerOf(s);
+      inner += '<circle data-c="1" cx="' + c[0] + '" cy="' + c[1] + '" r="3" fill="#D6336C" fill-opacity="0.7" stroke="#fff" stroke-width="1"/>';
+    }
+    st.innerHTML = inner;
+  }
+
+  function renderShapeList() {
+    if (!ED) return;
+    const host = $('edShapes'); host.innerHTML = '';
+    ED.shapes.forEach(function (s, i) {
+      const row = document.createElement('div');
+      row.className = 'srow' + (i === ED.selShape ? ' sel' : '');
+      let sw = '#ccc', label = s.kind;
+      if (s.kind === 'path') {
+        sw = s.attrs.fill && s.attrs.fill !== 'none' ? s.attrs.fill : (s.attrs.stroke || 'none');
+        label = '路径·' + s.cmds.length + '段' + (s.attrs.fill && s.attrs.fill !== 'none' ? '' : '·线');
+      } else if (s.kind !== 'other') {
+        sw = s.attrs.fill || 'none';
+        label = { ellipse: '椭圆', circle: '圆', rect: '矩形' }[s.kind];
+      } else label = s.tag + '（不可编辑）';
+      row.innerHTML = '<span class="sw" style="background:' + esc(sw) + '"></span>' +
+        esc(label) + ' <span class="note">#' + i + '</span>';
+      row.addEventListener('click', function () {
+        ED.selShape = i; ED.selPoint = null;
+        renderShapeList(); redrawEd(); renderNums();
+      });
+      host.appendChild(row);
+    });
+  }
+
+  function normHex(c) {
+    c = String(c || '').trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(c)) return c;
+    if (/^#[0-9a-fA-F]{3}$/.test(c)) return '#' + c[1] + c[1] + c[2] + c[2] + c[3] + c[3];
+    return null;
+  }
+  function renderNums() {
+    const host = $('edNums'); host.innerHTML = '';
+    if (!ED) return;
+    const s = ED.shapes[ED.selShape];
+    /* 工具按钮可用态 */
+    const pathSel = !!(s && s.kind === 'path');
+    $('edAddLine').disabled = false; $('edAddLoop').disabled = false;
+    $('edDelShape').disabled = !s;
+    $('edAddPt').disabled = !pathSel;
+    $('edDelPt').disabled = !(pathSel && ED.selPoint);
+    if (!s) { host.innerHTML = '<span class="note">先选中形状</span>'; return; }
+    function field(label, val, on) {
+      const lab = document.createElement('label');
+      lab.innerHTML = label + ' <input type="number" step="0.1" value="' + (+val).toFixed(2) + '">';
+      const inp = lab.querySelector('input');
+      inp.addEventListener('change', function () {
+        const v = parseFloat(inp.value);
+        if (isFinite(v)) { on(v); pushHist(); redrawEd(); renderNums(); }
+      });
+      host.appendChild(lab);
+    }
+    function colorRow(label, prop) {             // 颜色 + 「无」（= none）
+      const cur = s.attrs[prop] == null ? 'none' : String(s.attrs[prop]);
+      const has = cur !== 'none';
+      const hex = normHex(cur);
+      const wrap = document.createElement('div');
+      wrap.className = 'crow';
+      const lab = document.createElement('label');
+      /* 「无」状态不得 disabled 色块——否则永远选不回来；半透明提示 + 点击选色即恢复 */
+      lab.innerHTML = label + ' <input type="color" value="' + (hex || '#4a3b42') + '"' +
+        (has ? '' : ' style="opacity:.35" title="当前为「无」——点击选色即恢复"') + '>';
+      const inp = lab.querySelector('input');
+      inp.addEventListener('change', function () {
+        s.attrs[prop] = inp.value;
+        if (prop === 'stroke') ED.lastStroke = inp.value;
+        pushHist(); redrawEd(); renderShapeList(); renderNums();
+      });
+      const none = document.createElement('button');
+      none.type = 'button'; none.className = 'mini'; none.textContent = '无';
+      none.title = '设为 none（' + (prop === 'fill' ? '不填充' : '不描边') + '）';
+      none.disabled = !has;
+      none.addEventListener('click', function () {
+        s.attrs[prop] = 'none';
+        pushHist(); redrawEd(); renderShapeList(); renderNums();
+      });
+      wrap.appendChild(lab); wrap.appendChild(none);
+      host.appendChild(wrap);
+    }
+    if (s.kind === 'other') { host.innerHTML = '<span class="note">该元素不支持编辑</span>'; return; }
+    if (s.kind === 'path' && ED.selPoint) {
+      const a = anchorsOf(s)[ED.selPoint.a];
+      if (a) {
+        const c = s.cmds[a.ci];
+        field('锚X', c.p[a.pi], v => moveAnchor(s, ED.selPoint.a, v - c.p[a.pi], 0));
+        field('锚Y', c.p[a.pi + 1], v => moveAnchor(s, ED.selPoint.a, 0, v - c.p[a.pi + 1]));
+        function hbtn(label, fn) {
+          const b = document.createElement('button');
+          b.className = 'mini'; b.textContent = label; b.title = '柄属于段：本侧直段↔曲线互换';
+          b.addEventListener('click', fn);
+          host.appendChild(b);
+        }
+        if (c.t === 'C' || c.t === 'Q') {
+          const ii = c.t === 'C' ? 2 : 0;
+          field('入柄X', c.p[ii], v => { c.p[ii] = v; });
+          field('入柄Y', c.p[ii + 1], v => { c.p[ii + 1] = v; });
+          hbtn('－入柄', () => delHandle('in'));
+        } else if (a.ci > 0 && c.t === 'L') {
+          hbtn('＋入柄', () => addHandle('in'));
+        }
+        const nx = s.cmds[a.ci + 1];
+        if (nx && (nx.t === 'C' || nx.t === 'Q')) {
+          field('出柄X', nx.p[0], v => { nx.p[0] = v; });
+          field('出柄Y', nx.p[1], v => { nx.p[1] = v; });
+          hbtn('－出柄', () => delHandle('out'));
+        } else if (nx && nx.t === 'L') {
+          hbtn('＋出柄', () => addHandle('out'));
+        }
+      }
+    } else if (s.kind === 'path') {
+      host.innerHTML = '<span class="note">点击一个锚点（粉/白圆点）后可调数值</span>';
+    } else if (s.kind === 'ellipse') {
+      field('cx', s.attrs.cx, v => { s.attrs.cx = v; }); field('cy', s.attrs.cy, v => { s.attrs.cy = v; });
+      field('rx', s.attrs.rx, v => { s.attrs.rx = v; }); field('ry', s.attrs.ry, v => { s.attrs.ry = v; });
+    } else if (s.kind === 'circle') {
+      field('cx', s.attrs.cx, v => { s.attrs.cx = v; }); field('cy', s.attrs.cy, v => { s.attrs.cy = v; });
+      field('r', s.attrs.r, v => { s.attrs.r = v; });
+    } else if (s.kind === 'rect') {
+      field('x', s.attrs.x, v => { s.attrs.x = v; }); field('y', s.attrs.y, v => { s.attrs.y = v; });
+      field('宽', s.attrs.width, v => { s.attrs.width = v; }); field('高', s.attrs.height, v => { s.attrs.height = v; });
+    }
+    /* 颜色（填充 / 描边 / 描边宽——描边宽恒显示：无描边时为 0，加宽自动恢复描边色） */
+    colorRow('填充', 'fill');
+    colorRow('描边', 'stroke');
+    {
+      const hasStroke = s.attrs.stroke && s.attrs.stroke !== 'none';
+      field('描边宽',
+        s.attrs['stroke-width'] == null ? (hasStroke ? 1 : 0) : s.attrs['stroke-width'],
+        v => {
+          if (v > 0 && !hasStroke && (!s.attrs.stroke || s.attrs.stroke === 'none'))
+            s.attrs.stroke = ED.lastStroke || '#4a3b42';   // 无描边时给宽度 → 自动恢复颜色
+          s.attrs['stroke-width'] = Math.max(0, v);
+        });
+    }
+  }
+
+  /* ---- 撤销 / 重做（快照栈，上限 60 步；恢复时整体重建，兼容形状增删） ---- */
+  function edSnap() {
+    return JSON.stringify(ED.shapes.map(s => ({
+      k: s.kind, t: s.tag || null, a: s.attrs, d: s.cmds ? serPath(s.cmds) : null, r: s.raw || null
+    })));
+  }
+  function pushHist() {
+    ED.hist = ED.hist.slice(0, ED.hi + 1);
+    ED.hist.push(edSnap());
+    if (ED.hist.length > 60) ED.hist.shift();
+    ED.hi = ED.hist.length - 1;
+    updUR();
+  }
+  function edRestore(snapStr) {
+    const arr = JSON.parse(snapStr);
+    ED.shapes = arr.map(o =>
+      o.k === 'path' ? { kind: 'path', attrs: o.a, cmds: parsePath(o.d) } :
+      o.k === 'other' ? { kind: 'other', tag: o.t || 'other', attrs: o.a, raw: o.r || '' } :
+      { kind: o.k, attrs: o.a });
+    if (ED.selShape >= ED.shapes.length) ED.selShape = ED.shapes.length - 1;
+    if (ED.selPoint) {
+      const s = ED.shapes[ED.selShape];
+      if (!s || s.kind !== 'path' || ED.selPoint.a >= anchorsOf(s).length) ED.selPoint = null;
+    }
+    renderShapeList(); redrawEd(); renderNums(); updUR();
+  }
+  function edUndo() { if (ED && ED.hi > 0) { ED.hi--; edRestore(ED.hist[ED.hi]); } }
+  function edRedo() { if (ED && ED.hi < ED.hist.length - 1) { ED.hi++; edRestore(ED.hist[ED.hi]); } }
+  function updUR() {
+    $('edUndo').disabled = !ED || ED.hi <= 0;
+    $('edRedo').disabled = !ED || ED.hi >= ED.hist.length - 1;
+  }
+
+  /* ---- 舞台拖拽（pointer events） ---- */
+    (function () {
+    const st = $('edStage');
+    let drag = null;
+    function svgPt(e) {
+      const pt = st.createSVGPoint();
+      pt.x = e.clientX; pt.y = e.clientY;
+      return pt.matrixTransform(st.getScreenCTM().inverse());
+    }
+    st.addEventListener('pointerdown', function (e) {
+      if (!ED) return;
+      const s = ED.shapes[ED.selShape];
+      if (!s) return;
+      const t = e.target, ds = t.dataset || {};
+      const p = svgPt(e);
+      if (ds.a !== undefined) {
+        ED.selPoint = { a: +ds.a, h: null };
+        drag = { kind: 'anchor', ai: +ds.a, lx: p.x, ly: p.y };
+      } else if (ds.h) {
+        drag = { kind: 'handle', h: ds.h, ai: ED.selPoint ? ED.selPoint.a : 0, lx: p.x, ly: p.y };
+      } else if (ds.c) {
+        drag = { kind: 'center', lx: p.x, ly: p.y };
+      } else {
+        ED.selPoint = null; redrawEd(); renderNums(); return;
+      }
+      try { st.setPointerCapture(e.pointerId); } catch (err) { /* 忽略 */ }
+      redrawEd(); renderNums();
+      e.preventDefault();
+    });
+    st.addEventListener('pointermove', function (e) {
+      if (!drag || !ED) return;
+      const p = svgPt(e);
+      const dx = p.x - drag.lx, dy = p.y - drag.ly;
+      drag.lx = p.x; drag.ly = p.y;
+      const s = ED.shapes[ED.selShape];
+      if (!s) return;
+      if (drag.kind === 'anchor') moveAnchor(s, drag.ai, dx, dy);
+      else if (drag.kind === 'handle') moveHandle(s, drag.ai, drag.h, dx, dy);
+      else if (drag.kind === 'center') moveCenter(s, dx, dy);
+      redrawEd(); renderNums();
+    });
+    function up() { if (drag) { drag = null; pushHist(); } }
+    st.addEventListener('pointerup', up);
+    st.addEventListener('pointercancel', up);
+  })();
+
+  /* ---- 保存回写角色文件 ---- */
+  async function saveCharFile(def) {
+    const text = CF.texts[def.id];
+    if (text == null) { toast('⚠ 未持有 ' + def.id + '.js 源文本（静态挂载？），无法自动保存'); return; }
+    /* 预览拖动位移 → overrides 包裹层（拖回原位则解包/移除，保持文件干净） */
+    collectItems(def).forEach(function (en) {
+      const pos = en.item.__pos || { x: 0, y: 0 };
+      const has = Math.abs(pos.x) >= 0.5 || Math.abs(pos.y) >= 0.5;
+      def.overrides = def.overrides || {};
+      if (!has && en.item.__override == null) { delete def.overrides[en.key]; return; }
+      if (!has) {                               // 无位移：overrides 里若是我们包的位移层，解包
+        const w = unwrapPos(def.overrides[en.key]);
+        if (w) def.overrides[en.key] = en.item.__override;
+        return;
+      }
+      const base = en.item.__override != null ? en.item.__override
+                                              : en.item.draw(def.palette || {}, {});
+      def.overrides[en.key] = wrapPos(base, pos.x, pos.y);
+    });
+    /* 剥离旧补丁行（标记行均为单行 JSON），再追加新补丁行 */
+    const cleaned = text.replace(/\/\*__CHARFORGE_EDITS__\*\/registerEdits\([^\n]*\);\s*\n?/g, '');
+    const line = '/*__CHARFORGE_EDITS__*/registerEdits(' + JSON.stringify(def.id) + ',' +
+      JSON.stringify(def.overrides || {}) + ');\n';
+    const out = cleaned.replace(/\s*$/, '\n') + line;
+    CF.texts[def.id] = out;
+    const fname = CF.names[def.id] || (def.id + '.js');
+    /* 通道 1：已授权角色文件夹 → 直接写盘（权限过期则借本次点击申请续期） */
+    if (CF.dirHandle) {
+      let perm = null;
+      try { perm = await CF.dirHandle.queryPermission({ mode: 'readwrite' }); } catch (e) {}
+      if (perm !== 'granted') {
+        try { perm = await CF.dirHandle.requestPermission({ mode: 'readwrite' }); } catch (e) {}
+      }
+      if (perm === 'granted') {
+        try {
+          /* 写回来源目录（角色可能从 chars/ 子目录读出）；句柄失效 → 走通道 2 */
+          const cand = CF.srcDir && CF.srcDir[fname];
+          const wh = cand && typeof cand.getFileHandle === 'function' ? cand : CF.dirHandle;
+          const fh = await wh.getFileHandle(fname, { create: true });
+          const w = await fh.createWritable();
+          await w.write(out); await w.close();
+          toast('✓ 已写回 ' + fname + '（' + Object.keys(def.overrides).length + ' 处编辑）');
+          return;
+        } catch (e) { /* 句柄失效（文件夹被删/移动）→ 走通道 2 重新授权 */ }
+      }
+    }
+    /* 通道 2：无目录授权 → 现场授权一次（此后永久静默直写），不落下载 */
+    if (window.showDirectoryPicker) {
+      try {
+        const dir = await window.showDirectoryPicker({ id: 'charforge-chars', mode: 'readwrite' });
+        CF.dirHandle = dir;
+        try { IDB.put('dir', dir); } catch (e) {}
+        const fh = await dir.getFileHandle(fname, { create: true });
+        const w = await fh.createWritable();
+        await w.write(out); await w.close();
+        toast('✓ 已写回 ' + fname + '（已记住文件夹，之后保存零弹窗）');
+        return;
+      } catch (e) {
+        if (e && e.name === 'AbortError') { toast('⚠ 已取消授权，编辑未保存到文件'); return; }
+        /* 授权成功但写入失败 → 落到通道 3 */
+      }
+    }
+    /* 通道 3：浏览器不支持 File System Access → 只能下载替换 */
+    download(fname, new Blob([out], { type: 'text/javascript' }));
+    toast('⚠ 浏览器不支持直接写盘，已下载 ' + fname + ' —— 请替换同目录同名文件');
+  }
+
+  function applyEditor() {
+    if (!ED) return;
+    const markup = ED.shapes.map(shapeToSVG).join('');
+    ED.item.__override = markup;
+    ED.def.overrides = ED.def.overrides || {};
+    ED.def.overrides[ED.key] = markup;
+    clearBbox(ED.def);
+    const def = ED.def;
+    closeEditor();
+    renderAll();
+    saveCharFile(def).catch(e => toast('保存失败: ' + e.message));
+  }
+
+  /* 编辑器事件绑定 */
+  $('edUndo').addEventListener('click', edUndo);
+  $('edRedo').addEventListener('click', edRedo);
+  $('edCancel').addEventListener('click', closeEditor);
+  $('edApply').addEventListener('click', applyEditor);
+  $('edPiece').addEventListener('change', function () { loadEdKey(this.value); });
+  $('edZoomIn').addEventListener('click', () => zoomEd(1 / 1.25));
+  $('edZoomOut').addEventListener('click', () => zoomEd(1.25));
+  $('edAddLine').addEventListener('click', () => addShape('line'));
+  $('edAddLoop').addEventListener('click', () => addShape('loop'));
+  $('edDelShape').addEventListener('click', delShape);
+  $('edAddPt').addEventListener('click', addAnchor);
+  $('edDelPt').addEventListener('click', delAnchor);
+  document.addEventListener('keydown', function (e) {
+    if (!ED) return;
+    const tg = e.target && e.target.tagName;
+    if (tg === 'INPUT' || tg === 'SELECT') return;   // 输入框内不劫持快捷键
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') { e.preventDefault(); edUndo(); }
+    else if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' ||
+      (e.shiftKey && e.key.toLowerCase() === 'z'))) { e.preventDefault(); edRedo(); }
+    else if (e.key === 'Escape') closeEditor();
+  });
+
+  /* 自动化 / LLM 调试钩子 */
+  CF.getEd = function () { return ED; };
+  CF.renderAll = renderAll;
+  CF._loadFromDir = loadFromDir;
+  CF._items = collectItems;
+  CF.measure = measure;
+  CF.sanitizePos = sanitizePos;
+
+  /* ---- 预览拖动部件：pointerdown 选中层 → move 实时 transform → up 提交最后已应用位置 ----
+     换算必须留在 client 像素空间（rect/clientWidth 与 clientX 同口径）：
+     getScreenCTM 在 Chromium 的 CSS zoom（浏览器缩放/面板缩放）下与 clientX 口径不一致，
+     实测 1.25 倍偏差（60px 只换算出 0.8 倍距离）——这是「拖动不跟手」的元凶，禁用 CTM。
+     ②setPointerCapture（拖出舞台/窗口不丢事件）；③up 提交 drag.nx/ny（最后已应用值），
+     不从 e.clientX 重算——否则浏览器合帧丢掉的 move 会在松手瞬间一次性补上，部件前跳。 */
+  (function bindStageDrag() {
+    const stage = $('stage');
+    let drag = null;
+    function toCanvas(e) {
+      const vb = stage.viewBox.baseVal;
+      const r = stage.getBoundingClientRect();
+      const bl = (r.width - stage.clientWidth) / 2;    // 左边框（content-box 之外）
+      const bt = (r.height - stage.clientHeight) / 2;
+      const sc = Math.min(stage.clientWidth / vb.width,
+                          stage.clientHeight / vb.height);  // letterbox 安全
+      const ox = (stage.clientWidth - vb.width * sc) / 2;
+      const oy = (stage.clientHeight - vb.height * sc) / 2;
+      return { x: (e.clientX - r.left - bl - ox) / sc,
+               y: (e.clientY - r.top - bt - oy) / sc };
+    }
+    stage.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0) return;
+      const def = curDef(); if (!def) return;
+      const g = e.target.closest ? e.target.closest('g[data-cfk]') : null;
+      if (!g) return;
+      const key = g.getAttribute('data-cfk');
+      const en = collectItems(def).find(x => x.key === key);
+      if (!en) return;
+      const p = toCanvas(e); if (!p) return;
+      const p0 = en.item.__pos || { x: 0, y: 0 };
+      drag = { def: def, en: en, g: g, sx: e.clientX, sy: e.clientY,
+               cx: p.x, cy: p.y, ox: p0.x, oy: p0.y,
+               nx: p0.x, ny: p0.y, moved: false };
+      try { stage.setPointerCapture(e.pointerId); } catch (err) { /* 忽略 */ }
+      e.preventDefault();
+    });
+    stage.addEventListener('pointermove', function (e) {
+      if (!drag) return;
+      if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 2) return;
+      const p = toCanvas(e); if (!p) return;
+      const dx = p.x - drag.cx, dy = p.y - drag.cy;
+      /* 越界检测：g.getBBox() 含内层 __pos、不含外层增量 transform，
+         故提议位置的画布 bbox = cb 平移 (dx,dy)。出一丁点 → 本次拖动作废、弹回原位 */
+      const cb = drag.g.getBBox();
+      const c = drag.def.canvas || { w: 128, h: 128 };
+      const EPS = 0.01;
+      if (cb.x + dx < -EPS || cb.y + dy < -EPS ||
+          cb.x + cb.width + dx > c.w + EPS || cb.y + cb.height + dy > c.h + EPS) {
+        drag.g.removeAttribute('transform');
+        drag = null;
+        toast('部件超出预览框，本次拖动已取消并弹回');
+        return;
+      }
+      drag.moved = true;
+      drag.nx = drag.ox + dx;                    // 提交总量 = 旧位移 + 增量
+      drag.ny = drag.oy + dy;
+      /* 实时 transform 只加增量：内层渲染（itemSVG）已含旧 __pos，
+         再叠 ox 会把旧位移算两遍——拖动中部件多偏一个旧位移量（飘逸、非所见即所得） */
+      drag.g.setAttribute('transform', 'translate(' + dx.toFixed(2) + ' ' + dy.toFixed(2) + ')');
+    });
+    function up() {
+      if (!drag) return;
+      const d = drag; drag = null;
+      if (!d.moved) return;                      // 未动 = 点击，不改位置
+      const nx = +d.nx.toFixed(2), ny = +d.ny.toFixed(2);
+      d.en.item.__pos = (Math.abs(nx) < 0.5 && Math.abs(ny) < 0.5)
+        ? { x: 0, y: 0 } : { x: nx, y: ny };
+      clearBbox(d.def);
+      renderAll();
+      if (CF.dirHandle) saveCharFile(d.def).catch(err => toast('写盘失败: ' + err.message));
+      else toast('位置已调整（渲染与导出即时生效；下次保存时一并写盘）');
+    }
+    stage.addEventListener('pointerup', up);
+    stage.addEventListener('pointercancel', up);
+  })();
+
+  CF.edApi = {
+    select: function (si, ai) {
+      if (!ED) return false;
+      ED.selShape = si;
+      ED.selPoint = ai == null ? null : { a: ai, h: null };
+      renderShapeList(); redrawEd(); renderNums(); return true;
+    },
+    move: function (dx, dy) {
+      if (!ED) return false;
+      const s = ED.shapes[ED.selShape];
+      if (!s || s.kind !== 'path') return false;
+      moveAnchor(s, ED.selPoint ? ED.selPoint.a : 0, dx, dy);
+      redrawEd(); pushHist(); renderNums(); return true;
+    },
+    push: function () { if (ED) pushHist(); },
+    undo: edUndo, redo: edRedo,
+    addShape: function (kind) { return addShape(kind === 'line' ? 'line' : 'loop'); },
+    delShape: function () { return delShape(); },
+    addPt: function () { return addAnchor(); },
+    delPt: function () { return delAnchor(); },
+    addHandle: function (side) { return addHandle(side === 'in' ? 'in' : 'out'); },
+    delHandle: function (side) { return delHandle(side === 'in' ? 'in' : 'out'); },
+    setFill: function (v) {
+      if (!ED) return false;
+      const s = ED.shapes[ED.selShape];
+      if (!s || s.kind === 'other') return false;
+      s.attrs.fill = v;
+      pushHist(); redrawEd(); renderShapeList(); renderNums(); return true;
+    },
+    setStroke: function (v) {
+      if (!ED) return false;
+      const s = ED.shapes[ED.selShape];
+      if (!s || s.kind === 'other') return false;
+      s.attrs.stroke = v;
+      if (v && v !== 'none') ED.lastStroke = v;
+      pushHist(); redrawEd(); renderShapeList(); renderNums(); return true;
+    }
+  };
+
+  /* -------------------------------------------------------- 事件绑定 */
+  $('pgPrev').addEventListener('click', () => { cur = (cur - 1 + CF.chars.length) % CF.chars.length; renderAll(); });
+  $('pgNext').addEventListener('click', () => { cur = (cur + 1) % CF.chars.length; renderAll(); });
+  $('pngScale').addEventListener('change', () => renderAll());   // 卡片上的 @Nx.png 文件名跟随倍率
+  $('expZip').addEventListener('click', exportZip);
+  $('expFullSvg').addEventListener('click', () => exportFull('svg'));
+  $('expFullPng').addEventListener('click', () => exportFull('png'));
+  $('expPartsSvg').addEventListener('click', () => exportParts('svg'));
+  $('expPartsPng').addEventListener('click', () => exportParts('png'));
+  $('expSelZip').addEventListener('click', () => exportSel('zip'));
+  $('expSelSvg').addEventListener('click', () => exportSel('svg'));
+  $('expSelPng').addEventListener('click', () => exportSel('png'));
+  /* 文本 → 执行注册（addFiles / fetch 共用）；记录源文本供编辑器回写 */
+  function execCharText(name, text) {
+    const before = CF.chars.length;
+    /* 注入 <script> 而非 new Function：严格 CSP（禁 eval）下也能执行 */
+    const s = document.createElement('script');
+    s.textContent = text;
+    const onErr = e => CF.errors.push(name + ' 执行失败: ' + (e.message || e.type));
+    window.addEventListener('error', onErr, { once: true });
+    document.head.appendChild(s);   // 内联脚本插入即同步执行
+    window.removeEventListener('error', onErr);
+    s.remove();
+    for (let i = before; i < CF.chars.length; i++) {
+      CF.texts[CF.chars[i].id] = text;
+      CF.names[CF.chars[i].id] = name;   // 源文件名（编辑器回写按原名）
+    }
+  }
+  /* File 对象数组 → 执行注册（addFiles 共用） */
+  function execCharFiles(fs) {
+    let pending = fs.length;
+    if (!pending) { renderAll(); return; }
+    fs.forEach(function (f) {
+      const r = new FileReader();
+      r.onload = function () {
+        execCharText(f.name, r.result);
+        if (--pending === 0) renderAll();
+      };
+      r.readAsText(f);
+    });
+  }
+
+  /* 路径行旁「选择路径」：随时重选角色文件夹（与空态按钮不同，不走重连，直接弹选目录） */
+  $('pickSrcBtn').addEventListener('click', function () {
+    if (!window.showDirectoryPicker) { $('addFiles').click(); return; }
+    pickCharsDir();
+  });
+
+  $('addFiles').addEventListener('change', function () {
+    execCharFiles(Array.prototype.slice.call(this.files));
+    this.value = '';
+  });
+
+  /* ---- file:// 直读：File System Access 授权一次文件夹，句柄存 IndexedDB ----
+     之后每次打开：权限仍在 → 启动静默直读；权限过期 → 按钮一键重连（只弹「允许」条）。 */
+  const IDB = {
+    _db: null,
+    open() {
+      if (this._db) return Promise.resolve(this._db);
+      return new Promise(res => {
+        try {
+          const rq = indexedDB.open('charforge', 1);
+          rq.onupgradeneeded = () => rq.result.createObjectStore('kv');
+          rq.onsuccess = () => { this._db = rq.result; res(rq.result); };
+          rq.onerror = () => res(null);          // IndexedDB 不可用 → 退化为会话内手选
+        } catch (e) { res(null); }
+      });
+    },
+    get(key) {
+      return this.open().then(db => db ? new Promise(res => {
+        try {
+          const r = db.transaction('kv').objectStore('kv').get(key);
+          r.onsuccess = () => res(r.result || null);
+          r.onerror = () => res(null);
+        } catch (e) { res(null); }
+      }) : null);
+    },
+    put(key, val) {
+      return this.open().then(db => {
+        if (!db) return;
+        try { db.transaction('kv', 'readwrite').objectStore('kv').put(val, key); } catch (e) {}
+      });
+    }
+  };
+
+  async function loadFromDir(dir) {
+    const names = [];
+    for await (const entry of dir.values())
+      if (entry.kind === 'file' && /\.js$/i.test(entry.name)) names.push(entry.name);
+    names.sort();
+    let readDir = dir;
+    if (!names.length) {
+      /* 顶层无 .js → 自动下潜 chars/ 子目录（默认角色目录，兼容误授权上层文件夹） */
+      try {
+        const sub = await dir.getDirectoryHandle('chars');
+        const subNames = [];
+        for await (const entry of sub.values())
+          if (entry.kind === 'file' && /\.js$/i.test(entry.name)) subNames.push(entry.name);
+        if (subNames.length) { readDir = sub; subNames.sort(); names.push(...subNames); }
+      } catch (e) { /* 无 chars/ 子目录 → 维持空态提示 */ }
+    }
+    for (const n of names) {
+      try {
+        const f = await (await readDir.getFileHandle(n)).getFile();
+        CF.srcDir[n] = readDir;                // 来源目录：保存直写回原位（chars/ 等）
+        execCharText(n, await f.text());
+      } catch (e) { CF.errors.push(n + ' 读取失败: ' + e.message); }
+    }
+    return names.length;
+  }
+
+  async function pickCharsDir() {
+    try {
+      const dir = await window.showDirectoryPicker({ id: 'charforge-chars', mode: 'readwrite' });
+      CF.dirHandle = dir;
+      IDB.put('dir', dir);
+      const n = await loadFromDir(dir);
+      if (!n) CF.errors.push('所选文件夹里没有 .js 角色文件');
+      renderAll();
+    } catch (e) {
+      if (e && e.name !== 'AbortError') CF.errors.push('文件夹读取失败: ' + e.message);
+    }
+  }
+
+  $('pickCharsBtn').addEventListener('click', async () => {
+    if (!window.showDirectoryPicker) { $('addFiles').click(); return; }   // 兜底：手选文件
+    const h = CF.dirHandle;
+    if (h) {
+      try {
+        let ok = true;
+        if (await h.queryPermission({ mode: 'readwrite' }) !== 'granted')
+          ok = (await h.requestPermission({ mode: 'readwrite' })) === 'granted';
+        if (ok) {
+          const n = await loadFromDir(h);
+          if (!n) CF.errors.push('文件夹里没有 .js 角色文件');
+          renderAll();
+          return;
+        }
+      } catch (e) { /* 句柄失效（文件夹被删/移动）→ 重新选 */ }
+    }
+    pickCharsDir();
+  });
+
+  /* ------------------------------------------------- 角色自动发现（同目录） */
+  async function discoverChars() {
+    /* http(s)：fetch 本页所在目录的索引，解析其中全部 .js（新增/删除角色零改动）
+       file:// 直接跳过（fetch 必被 CORS 拦，控制台会报噪音错误） */
+    if (location.protocol !== 'file:') {
+      /* 目录索引解析：html 链接页 或 json 清单（服务端需开目录索引） */
+      const fetchIndex = async function (base) {
+        const r = await fetch(base, { cache: 'no-store' });
+        if (!r.ok) return [];
+        const ct = r.headers.get('content-type') || '';
+        let ns = [];
+        if (ct.indexOf('html') >= 0) {
+          const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+          ns = Array.from(doc.querySelectorAll('a[href]'))
+            .map(a => { try { return decodeURIComponent(a.getAttribute('href')); } catch (e) { return ''; } })
+            .map(h => h.split('/').pop())
+            .filter(n => /\.js$/i.test(n));
+        } else if (ct.indexOf('json') >= 0) {
+          const j = JSON.parse(await r.text());
+          ns = (Array.isArray(j) ? j : [])
+            .map(x => (typeof x === 'string' ? x : (x && x.name) || ''))
+            .filter(n => /\.js$/i.test(n));
+        }
+        return Array.from(new Set(ns));
+      };
+      const loadHttp = async function (base) {
+        const ns = await fetchIndex(base);
+        for (const n of ns) {
+          try {
+            const r2 = await fetch(base + encodeURIComponent(n), { cache: 'no-store' });
+            if (!r2.ok) throw new Error('读取失败: ' + n);
+            CF.srcDir[n] = base;             // 记录来源（仅字符串标记；写盘走通道 2/3）
+            execCharText(n, await r2.text());
+          } catch (e) { CF.errors.push(e.message); }
+        }
+        return ns.length;
+      };
+      try {
+        if (await loadHttp('./')) { renderAll(); return; }
+        if (await loadHttp('./chars/')) { renderAll(); return; }   // 顶层无 .js → chars/ 子目录
+      } catch (e) { /* 服务未开目录索引 → 空态提示里手选 */ }
+    } else {
+      /* file://：上次授权的文件夹若权限仍在 → 启动静默直读 */
+      try {
+        const h = await IDB.get('dir');
+        if (h) {
+          CF.dirHandle = h;
+          CF.storedDir = true;
+          let perm = 'granted';
+          try { perm = await h.queryPermission({ mode: 'readwrite' }); } catch (e) { perm = 'granted'; }
+          if (perm === 'granted') {
+            const n = await loadFromDir(h);
+            if (n) { renderAll(); return; }
+          } else {
+            $('hintRe').style.display = '';
+            $('pickCharsBtn').textContent = '🔗 一键重连角色文件夹（弹「允许」即可）';
+          }
+        }
+      } catch (e) { /* IndexedDB 不可用 → 空态提示里手选 */ }
+    }
+    renderAll();
+  }
+
+  discoverChars();
+})();
+</script>
+</body>
+</html>
