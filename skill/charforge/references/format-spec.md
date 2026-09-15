@@ -1,4 +1,4 @@
-# charforge 角色存档格式规范（真源）· 套装变体格式 v2
+# character-generation-skill 角色存档格式规范（真源）· 套装变体格式 v2
 
 > 每个角色一个自包含 `.js`，调用全局 `registerCharacter(def)` 注册。
 > 现成样例：`app/chars/girl.js`（女孩）、`app/chars/boy.js`（男孩）——写新角色先读其中一个再动手。
@@ -125,12 +125,12 @@ anchors: {
   ③浏览器无 FSA → 才自动下载同名 .js 提示替换。showSaveFilePicker 单文件通道已移除。
 
 ## 存放与发现（默认 chars/）
-- 角色 .js 默认放 `chars/` 文件夹（与 charforge.html 同级）。
+- 角色 .js 默认放 `chars/` 文件夹（与 Editor.html 同级）。
 - file://：授权任意文件夹都能读——顶层有 .js 读顶层；顶层无 .js 但存在 `chars/` 子目录时**自动下潜**读取。
 - http(s)：自动扫描本目录索引；顶层无 .js 时自动扫描 `chars/`。
 - 授权/发现记录来源目录（srcDir），编辑器保存补丁写回来源目录。
 
-## 页面行为（charforge.html，勿改主逻辑）
+## 页面行为（Editor.html，勿改主逻辑）
 
 - 加载顺序：注册器内联脚本 → `discoverChars()` 自动发现**同目录**下的 .js（http 走目录索引；
   file:// 走 FSA 文件夹授权一次 + 句柄存 IndexedDB，之后启动静默直读 / 一键重连）→ 主逻辑。

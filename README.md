@@ -1,10 +1,10 @@
 <p align="center"><b><a href="README_en.md">English</a> | 中文</b></p>
 
-# CharForge · 部件化 2D 游戏角色生成与导出
+# character-generation-skill · 部件化 2D 游戏角色生成与导出
 
-**配合 Agent 使用的角色生成 SKILL**：由 Agent 按描述生成 128px chibi 游戏角色（纯 SVG 矢量、无骨骼无动画、部件化可换装），生成后还能开 `charforge.html` 手动微调、预览和导出，导出为通用 SVG / PNG 素材，任何引擎都能直接使用。
+**配合 Agent 使用的角色生成 SKILL**：由 Agent 按描述生成 128px chibi 游戏角色（纯 SVG 矢量、无骨骼无动画、部件化可换装），生成后还能开 `Editor.html` 手动微调、预览和导出，导出为通用 SVG / PNG 素材，任何引擎都能直接使用。
 
-![CharForge 工具界面](assets/webui.png)
+![character-generation-skill 工具界面](assets/webui.png)
 
 ## 使用说明
 
@@ -15,7 +15,7 @@
 > 直接生成的成果通常不能直接用，三步走完才算成品。
 
 1. **用 Skill 生成**：给 Agent 一句话描述（风格 + 角色 + 想要什么），Agent 按技能规则生成角色素材——头部 / 表情 / 身体三组，加上帽子、眼镜、武器等挂件。每个角色就是一个自包含的 `.js` 文件，放进 `app/chars/` 即完成（工具自动发现，不用改任何 HTML）。
-2. **手动微调**：打开 `app/charforge.html` 人工接手——预览拼装效果；舞台上拖拽定位；点部件的 ✎ 打开 SVG 编辑器手动改形状 / 锚点 / 颜色（支持撤销/重做）。
+2. **手动微调**：打开 `app/Editor.html` 人工接手——预览拼装效果；舞台上拖拽定位；点部件的 ✎ 打开 SVG 编辑器手动改形状 / 锚点 / 颜色（支持撤销/重做）。
 3. **导出资源**：单部件、当前选中装配、或整角色，SVG / PNG / ZIP 一键打包，导出为通用素材，任何引擎都能直接用。
 
 > 一个 HTML 就是一个可运行的工具，双击即可用、免服务器，`app/` 整个目录拷走即交付。

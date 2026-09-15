@@ -1,10 +1,10 @@
 <p align="center"><b>English | <a href="README.md">中文</a></b></p>
 
-# CharForge · Part-based 2D Game Character Generation & Export
+# character-generation-skill · Part-based 2D Game Character Generation & Export
 
-**A character-generation SKILL that works with an Agent**: the Agent generates 128px chibi game characters from your description — pure SVG vector art, no skeleton, no animation, modular and outfit-swappable. After generation you can open `charforge.html` to manually fine-tune, preview, and export, producing universal SVG / PNG assets usable in any engine.
+**A character-generation SKILL that works with an Agent**: the Agent generates 128px chibi game characters from your description — pure SVG vector art, no skeleton, no animation, modular and outfit-swappable. After generation you can open `Editor.html` to manually fine-tune, preview, and export, producing universal SVG / PNG assets usable in any engine.
 
-![CharForge UI](assets/webui.png)
+![character-generation-skill UI](assets/webui.png)
 
 ## How to Install
 
@@ -15,7 +15,7 @@ Give your Agent the `skill` directory and let it install it for you.
 > What's generated directly usually isn't usable as-is — three steps make it a finished asset.
 
 1. **Generate with the Skill**: give the Agent a one-line description (style + character + what you want). The Agent generates the character assets per the skill's rules — head / face / body groups, plus accessories like hats, glasses, and weapons. Each character is a self-contained `.js` file; drop it into `app/chars/` and you're done (auto-discovered, no HTML to edit).
-2. **Fine-tune manually**: open `app/charforge.html` and take over — preview the assembled result; drag items on the stage to reposition; click a part's ✎ to open the SVG editor and hand-edit shapes / anchors / colors (undo/redo supported).
+2. **Fine-tune manually**: open `app/Editor.html` and take over — preview the assembled result; drag items on the stage to reposition; click a part's ✎ to open the SVG editor and hand-edit shapes / anchors / colors (undo/redo supported).
 3. **Export assets**: single parts, the currently selected assembly, or the whole character — one-click packaging as SVG / PNG / ZIP, produced as universal assets usable in any engine.
 
 > One HTML is a runnable tool: double-click to use, no server needed, and the whole `app/` directory can be copied away for delivery.

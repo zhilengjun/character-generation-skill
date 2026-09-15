@@ -1,13 +1,13 @@
-# charforge tests · 开发与验收工具
+# character-generation-skill tests · 开发与验收工具
 
-本目录脚本服务于 charforge **本身的开发与验收**——改 `app/charforge.html`、批量改角色、
+本目录脚本服务于 character-generation-skill **本身的开发与验收**——改 `app/Editor.html`、批量改角色、
 排查行为问题时防回归用。只是「用工具做角色 / 加角色 / 导出素材」的话，不需要本目录。
 
 ## 环境依赖（两个脚本一致）
 
 - Python 3.9+ 与 playwright：`pip install playwright`
 - 浏览器优先用系统 Edge；没有 Edge 自动退回 Playwright chromium（需先 `playwright install chromium`）
-- 用法：`python <脚本> [charforge.html 所在目录]`，缺省 = 仓库自带 `app/`
+- 用法：`python <脚本> [Editor.html 所在目录]`，缺省 = 仓库自带 `app/`
 - verify.py 的产物（截图 / 下载包 / 往返页）写在 `tests/_artifacts/`，可随时删
 
 ## verify.py — 功能回归（153 项）
@@ -19,7 +19,7 @@
 越界作废弹回·启动重置·静默写盘）/ PNG 尺寸倍率门闩（含真实导出尺寸断言）/ 来源路径行三种格式 /
 chars/ 下潜与 FSA 直写。
 
-**改 charforge.html 或批量改角色后应跑一遍**；写新测试可仿照它裁剪。
+**改 Editor.html 或批量改角色后应跑一遍**；写新测试可仿照它裁剪。
 
 ## bbox_check.py — 一致性自查
 
@@ -29,7 +29,7 @@ chars/ 下潜与 FSA 直写。
 - 例外政策：发型还原度等有意取舍（如垂发 vs 短发）可豁免——自带样例 girl/boy 有 6 处
   已知违例（双马尾头宽 +33%、男外套躯干 +38% 等），属保留还原度的设计决定。
 
-## 页面自动化钩子（charforge.html「自动化 / LLM 调试钩子」区）
+## 页面自动化钩子（Editor.html「自动化 / LLM 调试钩子」区）
 
 - `__CHARFORGE__.chars / texts / names / errors / srcDir / dirHandle`——注册器与状态
 - `__CHARFORGE__.renderAll()`——强制重渲染
