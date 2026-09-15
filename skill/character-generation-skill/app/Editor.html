@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" href="data:,">
-<title>charforge · 角色部件预览 / 导出</title>
+<title>character-generation-skill · 角色部件预览 / 导出</title>
 <style>
   :root {
     --line: #4A3B42; --bg: #FFF6EC; --panel: #FFFFFF; --panel2: #FFE9D6;
@@ -134,7 +134,7 @@
 </script>
 
 <header>
-  <h1>🎃 charforge · 角色部件预览 / 导出</h1>
+  <h1>🎃 character-generation-skill · 角色部件预览 / 导出</h1>
   <span class="note" id="loadInfo"></span>
   <span class="spacer"></span>
 </header>
@@ -157,7 +157,7 @@
         <div id="emptyHint" style="display:none; text-align:left; max-width:420px; margin:0 auto;
              border:2px dashed var(--bad); border-radius:10px; padding:10px 14px; font-size:13px;">
           <b style="color:var(--bad)">没有加载到任何角色</b><br>
-          角色 .js 推荐<b>放 chars/ 文件夹</b>（与本 charforge.html 同级）；也可放任意文件夹，授权时选中即可。<br>
+          角色 .js 推荐<b>放 chars/ 文件夹</b>（与本 Editor.html 同级）；也可放任意文件夹，授权时选中即可。<br>
           · 网页服务（http://）打开：自动扫描本目录及 chars/，无需操作；<br>
           · 双击打开（file://）：首次点下面按钮选一次角色文件夹，之后打开<b>自动直读</b>
           （授权上层目录也能自动识别其中的 chars/ 子文件夹）；<br>
@@ -220,7 +220,7 @@
 </main>
 
 <footer>
-  charforge · 单页工具，file:// 双击即用 · 角色整体 128px 高，全部资源（各头部/表情/身体件/挂件）可单独导出（SVG 矢量 / PNG 按倍率）。
+  character-generation-skill · 单页工具，file:// 双击即用 · 角色整体 128px 高，全部资源（各头部/表情/身体件/挂件）可单独导出（SVG 矢量 / PNG 按倍率）。
 </footer>
 
 <!-- 度量用隐藏 SVG（getBBox 需要参与布局，不能 display:none） -->
@@ -722,7 +722,7 @@
       $('loadInfo').innerHTML = '<span style="color:var(--bad)">⚠ 未加载到角色</span>';
       $('errPanel').style.display = '';
       $('regErrors').textContent = '角色文件没有被加载到。\n' +
-        '角色 .js 推荐放 chars/ 文件夹（与本 charforge.html 同级）。\n' +
+        '角色 .js 推荐放 chars/ 文件夹（与本 Editor.html 同级）。\n' +
         '· 网页服务（http://）打开会自动扫描本目录及 chars/；\n' +
         '· file:// 双击打开时浏览器禁止枚举目录，请点「选择角色文件夹」按钮\n' +
         '  授权角色所在文件夹（一次即可，之后自动重连；授权上层目录也会识别 chars/）。';
@@ -739,7 +739,7 @@
   function renderPartsExtra(def) {
     if (!def) return;
     $('expNames').innerHTML = '整体导出：<code>' + esc(def.id) + '_full.svg</code> · <code>' +
-      esc(def.id) + '_full@' + pngScale() + 'x.png</code> · <code>' + esc(def.id) + '_charforge.zip</code>' +
+      esc(def.id) + '_full@' + pngScale() + 'x.png</code> · <code>' + esc(def.id) + '_character-generation-skill.zip</code>' +
       '<br>部件命名：<code>' + esc(def.id) + '_head_&lt;套装&gt;</code> / <code>_face_</code> / ' +
       '<code>_body_&lt;套装&gt;_&lt;leg_l|leg_r|torso|arm_l|arm_r&gt;</code> / <code>_att_&lt;挂件&gt;</code>（PNG 同名 @倍率）';
   }
@@ -791,7 +791,7 @@
     });
     Promise.all(jobs).then(function () {
       window.__lastExport = { state: 'ok', files: files.length };
-      download(def.id + '_charforge.zip', buildZip(files));
+      download(def.id + '_character-generation-skill.zip', buildZip(files));
     }).catch(function (e) {
       window.__lastExport = { state: 'error', message: e.message };
       alert('导出失败：' + e.message);
@@ -1568,7 +1568,7 @@
     /* 通道 2：无目录授权 → 现场授权一次（此后永久静默直写），不落下载 */
     if (window.showDirectoryPicker) {
       try {
-        const dir = await window.showDirectoryPicker({ id: 'charforge-chars', mode: 'readwrite' });
+        const dir = await window.showDirectoryPicker({ id: 'character-generation-skill-chars', mode: 'readwrite' });
         CF.dirHandle = dir;
         try { IDB.put('dir', dir); } catch (e) {}
         const fh = await dir.getFileHandle(fname, { create: true });
@@ -1807,7 +1807,7 @@
       if (this._db) return Promise.resolve(this._db);
       return new Promise(res => {
         try {
-          const rq = indexedDB.open('charforge', 1);
+          const rq = indexedDB.open('character-generation-skill', 1);
           rq.onupgradeneeded = () => rq.result.createObjectStore('kv');
           rq.onsuccess = () => { this._db = rq.result; res(rq.result); };
           rq.onerror = () => res(null);          // IndexedDB 不可用 → 退化为会话内手选
@@ -1859,7 +1859,7 @@
 
   async function pickCharsDir() {
     try {
-      const dir = await window.showDirectoryPicker({ id: 'charforge-chars', mode: 'readwrite' });
+      const dir = await window.showDirectoryPicker({ id: 'character-generation-skill-chars', mode: 'readwrite' });
       CF.dirHandle = dir;
       IDB.put('dir', dir);
       const n = await loadFromDir(dir);

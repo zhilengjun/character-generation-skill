@@ -1,6 +1,6 @@
-# charforge 无头回归验证（153 项）：套装变体模型（头/表情/身体单选 + 分类挂件）+ file:// 加载 + 导出 ZIP
+# character-generation-skill 无头回归验证（153 项）：套装变体模型（头/表情/身体单选 + 分类挂件）+ file:// 加载 + 导出 ZIP
 #
-# 用法：python verify.py [charforge.html 所在目录]
+# 用法：python verify.py [Editor.html 所在目录]
 #   目录缺省 = 本脚本上级目录的 app/（即 skill 自带的 app）。
 # 依赖：Python 3.9+，pip install playwright && playwright install chromium
 #   （或本机装有 Edge/Chrome：脚本优先用系统 Edge，找不到则退回 Playwright 自带 chromium）
@@ -12,7 +12,7 @@ here = pathlib.Path(__file__).parent
 art = here / '_artifacts'                    # 截图 / 下载包 / 往返页 都进这里
 art.mkdir(exist_ok=True)
 app = pathlib.Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else here.parent / 'app'
-page_uri = (app / 'charforge.html').as_uri()
+page_uri = (app / 'Editor.html').as_uri()
 shot = lambda name: art / name
 
 results = []
@@ -83,7 +83,7 @@ with sync_playwright() as pw:
     pf = pg.eval_on_selector_all('#gHead .pfile', 'els => els.map(e => e.textContent)')
     check('头部卡含导出文件名', len(pf) == 2 and all('girl_head_' in x and '@2x.png' in x for x in pf), pf)
     en = pg.text_content('#expNames')
-    check('整体导出文件名提示', 'girl_full.svg' in en and 'girl_charforge.zip' in en, en)
+    check('整体导出文件名提示', 'girl_full.svg' in en and 'girl_character-generation-skill.zip' in en, en)
     check('部件命名规则提示', '_body_' in en and '_att_' in en and '_face_' in en, en)
 
     # 6) 身体套装整体切换（紫 → 粉 → 紫）
@@ -266,11 +266,11 @@ with sync_playwright() as pw:
     rt = art / '_rt'
     shutil.rmtree(rt, ignore_errors=True)
     rt.mkdir(parents=True)
-    shutil.copy2(app / 'charforge.html', rt / 'charforge.html')
+    shutil.copy2(app / 'Editor.html', rt / 'Editor.html')
     shutil.copy2(app / 'chars' / 'boy.js', rt / 'boy.js')
     shutil.copy2(jspath, rt / 'girl.js')
     pg2 = b.new_context(accept_downloads=True).new_page()
-    pg2.goto((rt / 'charforge.html').as_uri())
+    pg2.goto((rt / 'Editor.html').as_uri())
     pg2.wait_for_timeout(400)
     pg2.set_input_files('#addFiles', [str(rt / 'girl.js'), str(rt / 'boy.js')])
     pg2.wait_for_timeout(600)

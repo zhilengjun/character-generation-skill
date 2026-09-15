@@ -1,5 +1,5 @@
 /* =============================================================================
- * charforge 角色存档 —— 男孩（chibi-3head-warmline-128）· 套装变体格式 v2
+ * character-generation-skill 角色存档 —— 男孩（chibi-3head-warmline-128）· 套装变体格式 v2
  * 数据模型同 girl.js：headsets / faces / bodies / attachments(cat)
  * 与女孩同 style：默认套装下各基础件 bbox 尺寸差异控制在 20% 以内（手臂统一垂放姿态）
  * 风格：平涂无描边；部件靠色差区分；鞋为圆角矩形；外套斜肩+衬衫领

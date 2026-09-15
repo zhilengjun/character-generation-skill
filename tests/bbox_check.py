@@ -1,5 +1,5 @@
-# charforge 一致性自查：同 style 基础件 bbox 两两对比 ≤20% + 画布贴边/越界清单
-# 用法：python bbox_check.py [charforge.html 所在目录]   （缺省 = 脚本上级 app/）
+# character-generation-skill 一致性自查：同 style 基础件 bbox 两两对比 ≤20% + 画布贴边/越界清单
+# 用法：python bbox_check.py [Editor.html 所在目录]   （缺省 = 脚本上级 app/）
 #       加 --strict 时 20% 违例使退出码为 1（默认只报告不失败——发型还原度取舍可豁免）
 # 依赖：Python 3.9+ 与 playwright（`pip install playwright`；浏览器用系统 Edge，
 #       无 Edge 自动退回 Playwright chromium，需先 `playwright install chromium`）
@@ -25,7 +25,7 @@ with sync_playwright() as pw:
     errs = []
     pg.on('pageerror', lambda e: errs.append(str(e)))
     pg.on('dialog', lambda d: d.dismiss())
-    pg.goto((app / 'charforge.html').as_uri())
+    pg.goto((app / 'Editor.html').as_uri())
     pg.wait_for_timeout(600)
     pg.set_input_files('#addFiles', files)
     pg.wait_for_timeout(800)
