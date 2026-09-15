@@ -6,6 +6,8 @@
 
 ![character-generation-skill UI](assets/webui.png)
 
+![character-generation-skill Editor](assets/editor.png)
+
 ## How to Install
 
 Give your Agent the `skill` directory and let it install it for you.

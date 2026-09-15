@@ -6,6 +6,8 @@
 
 ![character-generation-skill 工具界面](assets/webui.png)
 
+![character-generation-skill 编辑器界面](assets/editor.png)
+
 ## 使用说明
 
 把 `skill` 目录给你的 Agent，让它为你安装。
