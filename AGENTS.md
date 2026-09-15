@@ -30,15 +30,16 @@
 
 1. **问 Style**（如没给）：新风格 → 让用户给参考；同风格追加 → 读现有角色文件拿
    palette + anchors + 比例。
-2. **写角色文件**：严格按 `references/format-spec.md`，**以现有角色文件为锚**
-   （例：`app/chars/girl.js`），自包含绘图原语内联。**同风格比例基准别动**。
-3. **收纳**：写进 `app/chars/`（默认角色文件夹）即完成——HTML 自动发现，**不改 charforge.html**。
+2. **写角色文件**：严格按 `skill/charforge/references/format-spec.md`，**以现有角色文件为锚**
+   （例：`skill/charforge/app/chars/girl.js`），自包含绘图原语内联。**同风格比例基准别动**。
+3. **收纳**：写进 `skill/charforge/app/chars/`（默认角色文件夹）即完成——HTML 自动发现，
+   **不改 charforge.html**。
 4. **验收**：
-   - `node --check app/角色名.js`
-   - 打开 `app/charforge.html` 肉眼验收 + 每套/挂件切一遍
+   - `node --check skill/charforge/app/chars/<角色名>.js`
+   - 打开 `skill/charforge/app/charforge.html` 肉眼验收 + 每套/挂件切一遍
    - `python tests/bbox_check.py`（一致性）与 `python tests/verify.py`（功能回归）
-   - 导出 ZIP 解包验 PNG 魔数与文件数
-5. **交付**：`app/` 整个目录交给用户。
+   - 导出 ZIP 解包验证：**SVG / PNG 各一份，文件数 = 头部套数 + 表情数 + 身体套数×5 + 挂件数**（另含整体 2 件）
+5. **交付**：把 `skill/charforge/app/`（charforge.html 与 chars/ 一起）整个目录拷给用户。
 
 ## 硬规则（红线）
 
@@ -49,8 +50,9 @@
 - **身体 5 件 key 固定** `legL/legR/torso/armL/armR`，缺件该件不画；除了
   `headsets/faces/bodies/attachments` 四组，不存在其他部件概念——想「再加一种基础件」先质疑需求。
 - **角色 id 全局唯一**，重复 id 会在「加载问题」面板报错。
-- **`/*__CHARFORGE_EDITS__*/registerEdits(...)` 单行补丁是保留行**：是手动编辑的 override，
-  **手工编辑角色文件时不要动它**（只把该行整行替换以更新 override）。
+- **`/*__CHARFORGE_EDITS__*/registerEdits(...)` 单行补丁是保留行**：是手动编辑的 override。
+  更新它是**编辑器的事**——手动编辑器点「完成并保存」时工具会**自动整行替换**该补丁；人工直接改
+  角色文件时**不要动它**，想还原就删掉整行即恢复 draw 输出。
 - **同一文件多处修改必须串行做**——并行 Edit 可能静默丢一处。
 - **20% 一致性规则**：同 style 基础件（head + body 五件）bbox 宽高两两差异 ≤20%；
   faces/attachments 不参与。页面不展示数据表，写角色时自查。**有意取舍**（如垂发 vs 短发）
@@ -66,16 +68,15 @@
   文本用 `TextEncoder().encode()`，PNG 先 `blob.arrayBuffer()` 再包 `Uint8Array`。
 - **PNG 导出防 NaN**：画布尺寸必须 `isFinite && >0`，画布 0 尺寸时 `toBlob` 返回 null 零报错。
 - **`exportZip` 只打包当前页角色**：双角色要翻页各导一次。
-- **样式字符集**：`charforge.html` 以 UTF-8 保存（标题里曾有转码乱码，勿用非 UTF-8 覆盖写）。
+- **编码**：`charforge.html` 是 **UTF-8（无 BOM）**，标题等中文均为正常 UTF-8 字节。改动时保持
+  UTF-8 写入，**勿用 ANSI/GBK 编码覆盖写**（否则中文会变乱码）。
 
 ## 测试 / 验收
 
 - 语法：`node --check skill/charforge/app/chars/*.js`
 - 功能回归（153 项）：`python tests/verify.py`（Playwright，产物在 `tests/_artifacts/`）
 - 一致性自查：`python tests/bbox_check.py`（默认只报告不阻断；`--strict` 时违例退出码 1）
-- 无头测试注意：加载角色两条通道（手选 `set_input_files('#addFiles', [...])` / FSA 注入 fake
-  `showDirectoryPicker`）；必须挂 `page.on('dialog', dismiss)`（无头 alert 会挂死）；
-  点击后 DOM 重建，在页面内一次性 `querySelectorAll(...).click()`，别抓句柄循环点。
+- 无头测试的坑（加载两条通道 / 无头 alert 挂死 / 点击后 DOM 重建）见 [`tests/README.md`](tests/README.md)。
 
 ## 常见命令速查
 

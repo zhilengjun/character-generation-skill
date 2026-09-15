@@ -256,3 +256,4 @@
 
   global.registerCharacter(P);
 })(typeof window !== 'undefined' ? window : globalThis);
+/*__CHARFORGE_EDITS__*/registerEdits("boy",{"boy|head:bowl":"<ellipse cx=\"64\" cy=\"33\" rx=\"22\" ry=\"22\" fill=\"#F7C49B\"/><path fill=\"#966E67\" d=\"M35.9 40.1C33.5 34.4 35.3 19.52 42.98 13.71C53.52 5.88 56.1 10 64 10C72 10 66.64 2.97 86 13.02C94.04 18.41 94.6 34.4 92.2 40.1L89.2 35.7L86.8 40.5L83.7 35.1L81.3 39.4C80 35.1 79.4 33.2 78.8 31.4C77 28.3 72.7 25.5 67.7 23.9C66.4 23.5 61.6 23.5 60.4 23.9C55.4 25.5 51.2 28.3 48.7 31.4C48.2 33.2 47.6 35.1 46.4 39.4L44 35.1L41.5 40.5L39 35.7Z\"/><path fill=\"none\" stroke=\"#4A3B42\" stroke-width=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M64.28 22.07L64 12.1\"/>"});
