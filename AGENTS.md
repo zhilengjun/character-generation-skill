@@ -23,7 +23,7 @@
 | `skill/character-generation-skill/app/chars/*.js` | 角色存档 | 加角色就加这里 |
 | `skill/character-generation-skill/references/format-spec.md` | 角色文件格式**真源** | 写角色前必读 |
 | `skill/character-generation-skill/SKILL.md` | 决策表 + 红线 + 坑 | 改前先看 |
-| `tests/verify.py` | 功能回归（153 项，Playwright） | 改 HTML / 批量改角色后跑 |
+| `tests/verify.py` | 功能回归（162 项，Playwright） | 改 HTML / 批量改角色后跑 |
 | `tests/bbox_check.py` | 20% 一致性 + 贴边/越界自查 | 加角色后跑 |
 
 ## 加新角色的固定流程
@@ -74,7 +74,7 @@
 ## 测试 / 验收
 
 - 语法：`node --check skill/character-generation-skill/app/chars/*.js`
-- 功能回归（153 项）：`python tests/verify.py`（Playwright，产物在 `tests/_artifacts/`）
+- 功能回归（162 项）：`python tests/verify.py`（Playwright，产物在 `tests/_artifacts/`）
 - 一致性自查：`python tests/bbox_check.py`（默认只报告不阻断；`--strict` 时违例退出码 1）
 - 无头测试的坑（加载两条通道 / 无头 alert 挂死 / 点击后 DOM 重建）见 [`tests/README.md`](tests/README.md)。
 

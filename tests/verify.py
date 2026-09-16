@@ -205,6 +205,39 @@ with sync_playwright() as pw:
     check('未选锚点半透明(fill-opacity 0.45)', fo == '0.45', fo)
     title = pg.text_content('#edTitle')
     check('编辑器标题=头部', '头部' in title and '编辑' in title, title)
+    # 13a) 点击画布图形直接选中形状（g[data-si] 反查；取顶部可命中形状的几何点做真实鼠标点击）
+    sel_info = pg.evaluate("""() => {
+      const ed = window.__CHARFORGE__.getEd();
+      const st = document.getElementById('edStage');
+      const probe = s => {
+        let x, y;
+        if (s.kind === 'path') { const c = s.cmds[0].p; x = c[0]; y = c[1]; }
+        else if (s.kind === 'rect') { x = +s.attrs.x + (+s.attrs.width || 0) / 2;
+                                      y = +s.attrs.y + (+s.attrs.height || 0) / 2; }
+        else { x = +s.attrs.cx; y = +s.attrs.cy; }
+        const pt = st.createSVGPoint(); pt.x = x; pt.y = y;
+        return pt.matrixTransform(st.getScreenCTM());
+      };
+      for (let i = ed.shapes.length - 1; i >= 0; i--) {
+        if (i === ed.selShape || ed.shapes[i].kind === 'other') continue;
+        const sp = probe(ed.shapes[i]);
+        const el = document.elementFromPoint(sp.x, sp.y);
+        const g = st.querySelector('g[data-si="' + i + '"]');
+        if (el && g && (el === g || g.contains(el))) {
+          window.__csi = i;
+          return { si: i, cx: sp.x, cy: sp.y, before: ed.selShape };
+        }
+      }
+      return null;
+    }""")
+    check('存在可点击选中的图形', bool(sel_info), sel_info)
+    if sel_info:
+        pg.mouse.click(sel_info['cx'], sel_info['cy'])
+        pg.wait_for_timeout(120)
+        check('点击图形选中该形状',
+              pg.evaluate("window.__CHARFORGE__.getEd().selShape") == sel_info['si'], sel_info)
+        check('形状列表同步高亮', pg.evaluate(
+            "document.querySelectorAll('#edShapes .srow')[window.__csi].classList.contains('sel')"))
     m0 = pg.evaluate("""() => {
       const ed = window.__CHARFORGE__.getEd();
       const si = ed.shapes.findIndex(s => s.kind === 'path');
@@ -561,6 +594,40 @@ with sync_playwright() as pw:
           abs(geo['fx'] - geo['mx']) < 0.02 and abs(geo['fy'] - geo['my']) < 0.02, geo)
     check('细分几何：入柄=原段1/3点', abs(geo['c2x'] - geo['t1x']) < 0.02, (geo['c2x'], geo['t1x']))
     check('细分几何：出柄=原段2/3点', abs(geo['ohx'] - geo['t2x']) < 0.02, (geo['ohx'], geo['t2x']))
+    # 15.6) 封口：开放路径补 Z；封口段两端锚点可＋柄弯曲；拖起点锚点保持闭合
+    pg.evaluate(f"{API_}.addShape('line')")          # 开放路径：M + L 两锚点
+    lni = pg.evaluate(f"{ED_}.selShape")
+    has_cb = pg.evaluate(
+        "Array.from(document.querySelectorAll('#edNums button')).some(b => b.textContent.indexOf('封口') >= 0)")
+    check('开放路径显示「封口」按钮', has_cb, has_cb)
+    pg.click("#edNums button:has-text('封口')")
+    z_last = pg.evaluate(f"{ED_}.shapes[{lni}].cmds.slice(-1)[0].t")
+    check('点击封口 → 末尾补 Z', z_last == 'Z', z_last)
+    pg.evaluate(f"{API_}.select({lni}, 1)")
+    ok_co = pg.evaluate(f"{API_}.addHandle('out')")
+    cstate = pg.evaluate(f"""(() => {{
+      const s = {ED_}.shapes[{lni}]; const n = s.cmds.length;
+      return {{ t1: s.cmds[n-2].t, t2: s.cmds[n-1].t,
+                end: s.cmds[n-2].p.slice(4), st: s.cmds[0].p.slice() }};}})()""")
+    check('封口段＋出柄：Z → C(终点=起点)+Z',
+          ok_co and cstate['t1'] == 'C' and cstate['t2'] == 'Z' and
+          abs(cstate['end'][0] - cstate['st'][0]) < 0.02 and
+          abs(cstate['end'][1] - cstate['st'][1]) < 0.02, cstate)
+    pg.evaluate(f"{API_}.select({lni}, 0)")
+    has_ix = pg.evaluate(
+        "Array.from(document.querySelectorAll('#edNums label')).some(l => l.textContent.indexOf('入柄X') >= 0)")
+    check('起点锚点显示入柄数值框(封口曲线)', has_ix, has_ix)
+    pg.evaluate(f"{API_}.move(2, 1)")
+    closed = pg.evaluate(f"""(() => {{
+      const s = {ED_}.shapes[{lni}]; const n = s.cmds.length;
+      const st = s.cmds[0].p, e = s.cmds[n-2].p;
+      return {{ dx: e[4] - st[0], dy: e[5] - st[1] }};}})()""")
+    check('拖起点锚点封口段跟随(保持闭合)', abs(closed['dx']) < 0.02 and abs(closed['dy']) < 0.02, closed)
+    ok_di = pg.evaluate(f"{API_}.delHandle('in')")
+    lstate = pg.evaluate(f"""(() => {{
+      const s = {ED_}.shapes[{lni}]; const n = s.cmds.length;
+      return {{ t: s.cmds[n-2].t, z: s.cmds[n-1].t }};}})()""")
+    check('－入柄：封口曲线降回 L 且 Z 保留', ok_di and lstate['t'] == 'L' and lstate['z'] == 'Z', lstate)
     # 撤销栈整体重建：撤到栈深 1（保留第一次改色）→ 形状回原数量、颜色保留
     pg.evaluate(f"while ({ED_}.hi > 1) {{ {API_}.undo(); }}")
     n3 = pg.evaluate(f"{ED_}.shapes.length")

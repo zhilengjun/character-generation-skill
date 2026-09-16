@@ -86,6 +86,7 @@
   #edShapes .srow:hover { background: var(--panel2); }
   #edShapes .srow.sel { background: #F0F9F1; outline: 1.5px solid var(--ok); }
   #edShapes .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #D9C8BE; flex: 0 0 14px; }
+  #edStage g[data-si] { cursor: pointer; }
   #edNums { display: flex; flex-wrap: wrap; gap: 6px; }
   #edNums label { font-size: 12px; display: inline-flex; align-items: center; gap: 3px; }
   #edNums input { width: 64px; font: inherit; padding: 2px 4px; border: 1.4px solid var(--line);
@@ -243,7 +244,7 @@
     <div class="ed-main">
       <svg id="edStage" xmlns="http://www.w3.org/2000/svg"></svg>
       <div class="ed-side">
-        <div class="gtitle"><b>形状</b>（点击选中）</div>
+        <div class="gtitle"><b>形状</b>（点列表或画布图形选中）</div>
         <div id="edShapes"></div>
         <div class="ed-tools">
           <button id="edAddLine" title="新增直线（开放路径）">＋线</button>
@@ -256,9 +257,10 @@
         </div>
         <div class="gtitle"><b>数值 / 颜色</b>（选中锚点/形状后可改）</div>
         <div id="edNums"></div>
-        <div class="ed-note" id="edHint">拖拽锚点移动（两侧手柄随行）；选中锚点后可＋/－锚点；曲线手柄可拖拽或调数值。<br>
+        <div class="ed-note" id="edHint">点击画布上的图形可直接选中该形状（点空白处取消锚点选中）；拖拽锚点移动（两侧手柄随行）；选中锚点后可＋/－锚点；曲线手柄可拖拽或调数值。<br>
           曲线段上＋锚点自动平滑细分（手柄保留）；直线段上加的是直点，<b>数值区的＋/－入柄、＋/－出柄</b>把相邻段在直线↔曲线间切换。<br>
-          ＋线/＋环在当前视图中央新增路径；颜色改填充与描边：点色块选色，「无」= none（再点色块选色即恢复）；描边宽恒可调（无描边时为 0，给宽度自动恢复描边色）。<br>
+          ＋线/＋环在当前视图中央新增路径；开放路径选中后数值区有「封口」按钮（补 Z 闭合），
+          封口段两端的锚点可＋入柄/＋出柄把它弯成曲线；颜色改填充与描边：点色块选色，「无」= none（再点色块选色即恢复）；描边宽恒可调（无描边时为 0，给宽度自动恢复描边色）。<br>
           Ctrl+Z 撤销 / Ctrl+Y 重做（≥60 步）；身体套装切换部件会重置历史。<br>
           「完成并保存」把编辑结果写回角色 .js（首次可能让你选一次保存位置，之后静默保存）。</div>
       </div>
@@ -1000,7 +1002,9 @@
   /* ---- 锚点 / 手柄几何 ---- */
   function anchorsOf(s) {
     const out = [];
+    const cs = closingCmd(s);                    // 显式封口段端点与起点重合，不重复出锚点
     s.cmds.forEach(function (c, ci) {
+      if (cs && c === cs && c.t !== 'Z') return;
       if (c.t === 'M' || c.t === 'L') out.push({ ci: ci, pi: 0 });
       else if (c.t === 'C') out.push({ ci: ci, pi: 4 });
       else if (c.t === 'Q') out.push({ ci: ci, pi: 2 });
@@ -1008,21 +1012,45 @@
     });
     return out;
   }
+  /* 封口段：末段端点回到起点（显式 L/C/Q 回起点，或末尾 Z 隐含直段）→ 返回该命令；
+     开放路径返回 null。显式封口段可携带曲线柄（可能后随一个零长 Z）；Z 封口是纯直段。 */
+  function closingCmd(s) {
+    if (!s || s.kind !== 'path' || s.cmds.length < 2) return null;
+    const last = s.cmds[s.cmds.length - 1];
+    const st = s.cmds[0].p;
+    const back = c => {
+      const e = segEnd(c);
+      return Math.abs(e[0] - st[0]) < 0.02 && Math.abs(e[1] - st[1]) < 0.02;
+    };
+    if (last.t === 'Z') {
+      const prev = s.cmds[s.cmds.length - 2];
+      return (prev && prev.t !== 'M' && prev.t !== 'Z' && back(prev)) ? prev : last;
+    }
+    return (last.t === 'L' || last.t === 'C' || last.t === 'Q') && back(last) ? last : null;
+  }
+
   function moveAnchor(s, ai, dx, dy) {
     const a = anchorsOf(s)[ai]; if (!a) return;
+    const cs0 = a.ci === 0 ? closingCmd(s) : null;   // 先取封口段：移动后"端点==起点"判断会失效
     const c = s.cmds[a.ci];
     c.p[a.pi] += dx; c.p[a.pi + 1] += dy;
     if (c.t === 'C') { c.p[2] += dx; c.p[3] += dy; }             // 入柄随行
     else if (c.t === 'Q') { c.p[0] += dx; c.p[1] += dy; }
     const nx = s.cmds[a.ci + 1];                                   // 出柄随行
     if (nx && (nx.t === 'C' || nx.t === 'Q')) { nx.p[0] += dx; nx.p[1] += dy; }
+    if (cs0 && cs0.t !== 'Z') {                  // 起点：显式封口段端点（=起点）随行，保持闭合
+      const ep = cs0.t === 'C' ? 4 : (cs0.t === 'Q' ? 2 : 0);
+      cs0.p[ep] += dx; cs0.p[ep + 1] += dy;
+      if (cs0.t === 'C') { cs0.p[2] += dx; cs0.p[3] += dy; }     // 入柄随行
+      else if (cs0.t === 'Q' && cs0 !== nx) { cs0.p[0] += dx; cs0.p[1] += dy; }
+    }
   }
   function moveHandle(s, ai, h, dx, dy) {
     const a = anchorsOf(s)[ai]; if (!a) return;
-    const c = s.cmds[a.ci];
+    const c = a.ci > 0 ? s.cmds[a.ci] : closingCmd(s);           // 起点的入柄在封口段上
     if (h === 'in') {
-      if (c.t === 'C') { c.p[2] += dx; c.p[3] += dy; }
-      else if (c.t === 'Q') { c.p[0] += dx; c.p[1] += dy; }
+      if (c && c.t === 'C') { c.p[2] += dx; c.p[3] += dy; }
+      else if (c && c.t === 'Q') { c.p[0] += dx; c.p[1] += dy; }
     } else {
       const nx = s.cmds[a.ci + 1];
       if (nx && (nx.t === 'C' || nx.t === 'Q')) { nx.p[0] += dx; nx.p[1] += dy; }
@@ -1067,6 +1095,16 @@
     ED.selShape = Math.min(ED.selShape, ED.shapes.length - 1);
     ED.selPoint = null;
     pushHist(); renderShapeList(); redrawEd(); renderNums();
+    return true;
+  }
+  /* 封口：开放路径末尾补 Z（末锚点直段连回起点）。之后起/末锚点可＋柄把封口段弯成曲线 */
+  function closeShape() {
+    if (!ED) return false;
+    const s = ED.shapes[ED.selShape];
+    if (!s || s.kind !== 'path' || !s.cmds.length) { toast('先选中一条路径'); return false; }
+    if (s.cmds[s.cmds.length - 1].t === 'Z') { toast('路径已封口'); return false; }
+    s.cmds.push({ t: 'Z', p: [] });
+    pushHist(); redrawEd(); renderShapeList(); renderNums();
     return true;
   }
   function addAnchor() {
@@ -1132,10 +1170,15 @@
     if (anch.length <= 1) { toast('至少保留一个锚点'); return false; }
     const a = anch[ED.selPoint.a]; if (!a) return false;
     const ci = a.ci;
+    const cs0 = closingCmd(s);
     if (ci === 0) {                              // 删起点：后继锚点成为新起点（首段消失）
       const nx2 = s.cmds[1];
       if (nx2 && nx2.t !== 'Z') nx2.t = 'M';
       s.cmds.shift();
+      if (cs0 && cs0.t !== 'Z' && s.cmds[s.cmds.length - 1].t === 'Z')
+        s.cmds.pop();                            // 显式封口段端点已悬空 → 去掉冗余 Z（变开放）
+    } else if (cs0 && cs0.t !== 'Z' && s.cmds[ci + 1] === cs0) {
+      s.cmds.splice(ci, 2);                      // 末锚点+显式封口段一并删，避免悬空回起点段
     } else {                                     // 删中间/末尾锚点：与下一锚点间降为直线
       const nxt = s.cmds[ci + 1];
       if (nxt && (nxt.t === 'C' || nxt.t === 'Q')) {
@@ -1166,22 +1209,40 @@
     const f2 = n => +(n.toFixed(2));
     if (side === 'out') {
       const nx = s.cmds[a.ci + 1];
-      if (!nx || nx.t === 'Z' || nx.t === 'A') { toast('该锚点后没有可弯曲的直线段'); return false; }
+      if (!nx || nx.t === 'A') { toast('该锚点后没有可弯曲的直线段'); return false; }
       if (nx.t === 'C' || nx.t === 'Q') { toast('出柄已存在'); return false; }
+      if (nx.t === 'Z' && nx !== s.cmds[s.cmds.length - 1]) {
+        toast('该锚点后没有可弯曲的直线段'); return false;
+      }
       const c0 = s.cmds[a.ci], p0x = c0.p[a.pi], p0y = c0.p[a.pi + 1];
-      const epx = nx.p[0], epy = nx.p[1];
-      nx.t = 'C';
+      const isZ = nx.t === 'Z';                  // 封口段 Z → 曲线封口：C（终点=起点）+ Z
+      const epx = isZ ? s.cmds[0].p[0] : nx.p[0], epy = isZ ? s.cmds[0].p[1] : nx.p[1];
+      nx.t = 'C';                                // 原地改（Z 在末位，改后仍占其位）
       nx.p = [f2(p0x + (epx - p0x) / 3), f2(p0y + (epy - p0y) / 3),
-              f2(p0x + (epx - p0x) * 2 / 3), f2(p0y + (epy - p0y) * 2 / 3), epx, epy];
+              f2(p0x + (epx - p0x) * 2 / 3), f2(p0y + (epy - p0y) * 2 / 3), f2(epx), f2(epy)];
+      if (isZ) s.cmds.push({ t: 'Z', p: [] });
     } else {
       const c = s.cmds[a.ci];
-      if (c.t === 'C' || c.t === 'Q') { toast('入柄已存在'); return false; }
-      if (a.ci === 0 || c.t !== 'L') { toast('该锚点前没有可弯曲的直线段'); return false; }
-      const pe = segEnd(s.cmds[a.ci - 1]);
-      const epx = c.p[0], epy = c.p[1];
-      c.t = 'C';
-      c.p = [f2(pe[0] + (epx - pe[0]) / 3), f2(pe[1] + (epy - pe[1]) / 3),
-             f2(pe[0] + (epx - pe[0]) * 2 / 3), f2(pe[1] + (epy - pe[1]) * 2 / 3), epx, epy];
+      if (a.ci > 0) {
+        if (c.t === 'C' || c.t === 'Q') { toast('入柄已存在'); return false; }
+        if (c.t !== 'L') { toast('该锚点前没有可弯曲的直线段'); return false; }
+        const pe = segEnd(s.cmds[a.ci - 1]);
+        const epx = c.p[0], epy = c.p[1];
+        c.t = 'C';
+        c.p = [f2(pe[0] + (epx - pe[0]) / 3), f2(pe[1] + (epy - pe[1]) / 3),
+               f2(pe[0] + (epx - pe[0]) * 2 / 3), f2(pe[1] + (epy - pe[1]) * 2 / 3), epx, epy];
+      } else {                                   // 起点：入柄在封口段上（直段封口升 C）
+        const cs = closingCmd(s);
+        if (!cs) { toast('该锚点前没有可弯曲的直线段（可先「封口」）'); return false; }
+        if (cs.t === 'C' || cs.t === 'Q') { toast('入柄已存在'); return false; }
+        const pe = segEnd(s.cmds[s.cmds.indexOf(cs) - 1]);
+        const epx = s.cmds[0].p[0], epy = s.cmds[0].p[1];
+        const wasZ = cs.t === 'Z';
+        cs.t = 'C';                              // 原地改（Z 在末位，改后仍占其位）
+        cs.p = [f2(pe[0] + (epx - pe[0]) / 3), f2(pe[1] + (epy - pe[1]) / 3),
+                f2(pe[0] + (epx - pe[0]) * 2 / 3), f2(pe[1] + (epy - pe[1]) * 2 / 3), f2(epx), f2(epy)];
+        if (wasZ) s.cmds.push({ t: 'Z', p: [] });
+      }
     }
     pushHist(); redrawEd(); renderNums();
     return true;
@@ -1194,10 +1255,10 @@
     if (side === 'out') {
       const nx = s.cmds[a.ci + 1];
       if (!nx || (nx.t !== 'C' && nx.t !== 'Q')) { toast('该锚点没有出柄'); return false; }
-      nx.t = 'L'; nx.p = segEnd(nx);
+      nx.t = 'L'; nx.p = segEnd(nx);             // 封口段降级后终点仍=起点，闭合保持
     } else {
-      const c = s.cmds[a.ci];
-      if (c.t !== 'C' && c.t !== 'Q') { toast('该锚点没有入柄'); return false; }
+      const c = a.ci > 0 ? s.cmds[a.ci] : closingCmd(s);   // 起点的入柄在封口段上
+      if (!c || (c.t !== 'C' && c.t !== 'Q')) { toast('该锚点没有入柄'); return false; }
       c.t = 'L'; c.p = segEnd(c);
     }
     pushHist(); redrawEd(); renderNums();
@@ -1266,7 +1327,9 @@
     if (!ED) return;
     const st = $('edStage');
     st.setAttribute('viewBox', ED.vb.join(' '));
-    let inner = ED.shapes.map(shapeToSVG).join('');
+    let inner = ED.shapes.map(function (s, i) {  // 包一层 g[data-si]：点击图形反查形状索引
+      return '<g data-si="' + i + '">' + shapeToSVG(s) + '</g>';
+    }).join('');
     const s = ED.shapes[ED.selShape];
     if (s && s.kind === 'path') {
       const lines = [], dots = [];
@@ -1281,11 +1344,12 @@
         const a = anchorsOf(s)[ED.selPoint.a];
         if (a) {
           const c = s.cmds[a.ci], ax = c.p[a.pi], ay = c.p[a.pi + 1];
-          if (c.t === 'C' || c.t === 'Q') {
-            const ii = c.t === 'C' ? 2 : 0;
-            lines.push('<line x1="' + ax + '" y1="' + ay + '" x2="' + c.p[ii] + '" y2="' + c.p[ii + 1] +
+          const cin = a.ci === 0 ? closingCmd(s) : c;   // 起点的入柄在封口段上
+          if (cin && (cin.t === 'C' || cin.t === 'Q')) {
+            const ii = cin.t === 'C' ? 2 : 0;
+            lines.push('<line x1="' + ax + '" y1="' + ay + '" x2="' + cin.p[ii] + '" y2="' + cin.p[ii + 1] +
               '" stroke="#2E8B57" stroke-width="0.8"/>' +
-              '<circle data-h="in" data-pi="' + ii + '" cx="' + c.p[ii] + '" cy="' + c.p[ii + 1] +
+              '<circle data-h="in" data-pi="' + ii + '" cx="' + cin.p[ii] + '" cy="' + cin.p[ii + 1] +
               '" r="2.6" fill="#2E8B57" fill-opacity="0.55" stroke="#fff" stroke-width="0.8"/>');
           }
           const nx = s.cmds[a.ci + 1];
@@ -1396,12 +1460,14 @@
           b.addEventListener('click', fn);
           host.appendChild(b);
         }
-        if (c.t === 'C' || c.t === 'Q') {
-          const ii = c.t === 'C' ? 2 : 0;
-          field('入柄X', c.p[ii], v => { c.p[ii] = v; });
-          field('入柄Y', c.p[ii + 1], v => { c.p[ii + 1] = v; });
+        const cs = a.ci === 0 ? closingCmd(s) : null;   // 起点的入柄在封口段上
+        const ic = a.ci === 0 ? cs : c;
+        if (ic && (ic.t === 'C' || ic.t === 'Q')) {
+          const ii = ic.t === 'C' ? 2 : 0;
+          field('入柄X', ic.p[ii], v => { ic.p[ii] = v; });
+          field('入柄Y', ic.p[ii + 1], v => { ic.p[ii + 1] = v; });
           hbtn('－入柄', () => delHandle('in'));
-        } else if (a.ci > 0 && c.t === 'L') {
+        } else if (ic && (ic.t === 'L' || (a.ci === 0 && ic.t === 'Z'))) {
           hbtn('＋入柄', () => addHandle('in'));
         }
         const nx = s.cmds[a.ci + 1];
@@ -1409,7 +1475,7 @@
           field('出柄X', nx.p[0], v => { nx.p[0] = v; });
           field('出柄Y', nx.p[1], v => { nx.p[1] = v; });
           hbtn('－出柄', () => delHandle('out'));
-        } else if (nx && nx.t === 'L') {
+        } else if (nx && (nx.t === 'L' || nx.t === 'Z')) {
           hbtn('＋出柄', () => addHandle('out'));
         }
       }
@@ -1424,6 +1490,14 @@
     } else if (s.kind === 'rect') {
       field('x', s.attrs.x, v => { s.attrs.x = v; }); field('y', s.attrs.y, v => { s.attrs.y = v; });
       field('宽', s.attrs.width, v => { s.attrs.width = v; }); field('高', s.attrs.height, v => { s.attrs.height = v; });
+    }
+    /* 封口按钮：开放路径（末段不回起点）随时可补 Z 闭合——放在分支后，避免被 innerHTML 覆盖 */
+    if (s.kind === 'path' && s.cmds.length && !closingCmd(s)) {
+      const cb = document.createElement('button');
+      cb.className = 'mini'; cb.textContent = '⬤ 封口';
+      cb.title = '闭合路径：末锚点以直线连回起点（之后起/末锚点可＋柄把封口段弯成曲线）';
+      cb.addEventListener('click', function () { closeShape(); });
+      host.appendChild(cb);
     }
     /* 颜色（填充 / 描边 / 描边宽——描边宽恒显示：无描边时为 0，加宽自动恢复描边色） */
     colorRow('填充', 'fill');
@@ -1484,19 +1558,29 @@
     }
     st.addEventListener('pointerdown', function (e) {
       if (!ED) return;
+      const t = e.target, ds = t.dataset || {};
+      /* 非 锚点/手柄/中心点 的点击：点中图形 → 选中该形状（selShape=-1 时也能选）；
+         点空白 → 仅取消锚点选中（原行为） */
+      if (ds.a === undefined && !ds.h && !ds.c) {
+        const gs = t.closest ? t.closest('g[data-si]') : null;
+        ED.selPoint = null;
+        if (gs) {
+          const si = +gs.getAttribute('data-si');
+          if (si !== ED.selShape) { ED.selShape = si; renderShapeList(); }
+        }
+        redrawEd(); renderNums();
+        return;
+      }
       const s = ED.shapes[ED.selShape];
       if (!s) return;
-      const t = e.target, ds = t.dataset || {};
       const p = svgPt(e);
       if (ds.a !== undefined) {
         ED.selPoint = { a: +ds.a, h: null };
         drag = { kind: 'anchor', ai: +ds.a, lx: p.x, ly: p.y };
       } else if (ds.h) {
         drag = { kind: 'handle', h: ds.h, ai: ED.selPoint ? ED.selPoint.a : 0, lx: p.x, ly: p.y };
-      } else if (ds.c) {
-        drag = { kind: 'center', lx: p.x, ly: p.y };
       } else {
-        ED.selPoint = null; redrawEd(); renderNums(); return;
+        drag = { kind: 'center', lx: p.x, ly: p.y };
       }
       try { st.setPointerCapture(e.pointerId); } catch (err) { /* 忽略 */ }
       redrawEd(); renderNums();
@@ -1725,6 +1809,7 @@
     undo: edUndo, redo: edRedo,
     addShape: function (kind) { return addShape(kind === 'line' ? 'line' : 'loop'); },
     delShape: function () { return delShape(); },
+    close: function () { return closeShape(); },
     addPt: function () { return addAnchor(); },
     delPt: function () { return delAnchor(); },
     addHandle: function (side) { return addHandle(side === 'in' ? 'in' : 'out'); },
