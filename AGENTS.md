@@ -78,6 +78,26 @@
 - 一致性自查：`python tests/bbox_check.py`（默认只报告不阻断；`--strict` 时违例退出码 1）
 - 无头测试的坑（加载两条通道 / 无头 alert 挂死 / 点击后 DOM 重建）见 [`tests/README.md`](tests/README.md)。
 
+## Git 提交规范
+
+- **格式 `type: 中文摘要`**：type 按**本次主要改动**选（一个提交以修 bug 为主就写 `fix`，不堆多个前缀），
+  摘要用中文、结尾不带句号：
+
+  | type | 何时用 |
+  |---|---|
+  | `feat` | 新功能：加角色、加挂件、编辑器新交互 |
+  | `fix` | 修 bug：渲染 / 导出 / 交互缺陷、坐标越界 |
+  | `docs` | 只改文档（SKILL.md、format-spec.md、本文件等） |
+  | `refactor` | 不改行为的整理：改名、挪结构 |
+  | `test` | 只改 `tests/` |
+  | `chore` | 杂项：重命名、清理、配置 |
+
+- **一个任务一个提交**：一次会话有多个功能改动时**分批提交**，同一次提交只装**同一个任务**的改动
+  （例：「新增角色 X」的角色文件一个 `feat:` 提交；「编辑器修 bug」另起一个 `fix:` 提交——即使同天完成）。
+  为该任务顺手改的测试 / 文档可随该任务一起提交。
+- **拆分手法**：按文件 `git add <路径>` 分批暂存；同一文件混了两个任务的改动用 `git add -p` 按 hunk 拆；
+  提交前 `git diff --staged` 复核暂存区只含本任务内容。
+
 ## 常见命令速查
 
 ```bash
@@ -87,6 +107,10 @@ node --check skill/character-generation-skill/app/chars/girl.js
 # 一致性 + 功能回归
 python tests/bbox_check.py --strict
 python tests/verify.py
+
+# 分批提交：按任务分批暂存，同一任务的改动一起提交
+git add skill/character-generation-skill/app/chars/<角色名>.js
+git commit -m "feat: 新增角色 <角色名>"
 
 # 交付物 = app/ 整个目录（html 与 chars/ 一起交付）
 ```
